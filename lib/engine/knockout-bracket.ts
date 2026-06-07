@@ -112,6 +112,26 @@ function resolveSlot(
 }
 
 /**
+ * Apply host R32 third-place overrides to a computed bracket.
+ * Overrides format: { "matchId": "teamId" } — swaps third-place
+ * team assignments for R32 slots.
+ */
+export function applyR32Overrides(
+  matches: KnockoutMatch[],
+  overrides: Record<string, string>
+): KnockoutMatch[] {
+  const result = matches.map((m) => ({ ...m }))
+  for (const [matchIdStr, teamId] of Object.entries(overrides)) {
+    const matchId = Number(matchIdStr)
+    const match = result.find((m) => m.id === matchId && m.round === 'R32')
+    if (match && match.awaySlot.startsWith('3{')) {
+      match.awayTeamId = teamId
+    }
+  }
+  return result
+}
+
+/**
  * Populate the knockout bracket from group standings, third-place assignments,
  * and user picks. Pure function.
  */

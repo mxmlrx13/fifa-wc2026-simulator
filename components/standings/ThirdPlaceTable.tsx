@@ -22,18 +22,17 @@ export default function ThirdPlaceTable({ results }: ThirdPlaceTableProps) {
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-line text-left text-[10px] font-bold uppercase tracking-[0.09em] text-muted">
-            <th className="px-3 py-2.5">Rank</th>
-            <th className="px-3 py-2.5">Group</th>
+            <th className="px-3 py-2.5">#</th>
             <th className="px-3 py-2.5">Team</th>
-            <th className="px-3 py-2.5 text-center">P</th>
-            <th className="px-3 py-2.5 text-center">W</th>
-            <th className="px-3 py-2.5 text-center">D</th>
-            <th className="px-3 py-2.5 text-center">L</th>
-            <th className="px-3 py-2.5 text-center">GF</th>
-            <th className="px-3 py-2.5 text-center">GA</th>
+            <th className="px-3 py-2.5">Grp</th>
+            <th className="hidden md:table-cell px-3 py-2.5 text-center">P</th>
+            <th className="hidden md:table-cell px-3 py-2.5 text-center">W</th>
+            <th className="hidden md:table-cell px-3 py-2.5 text-center">D</th>
+            <th className="hidden md:table-cell px-3 py-2.5 text-center">L</th>
+            <th className="hidden md:table-cell px-3 py-2.5 text-center">GF</th>
+            <th className="hidden md:table-cell px-3 py-2.5 text-center">GA</th>
             <th className="px-3 py-2.5 text-center">GD</th>
             <th className="px-3 py-2.5 text-center font-bold text-ink">Pts</th>
-            <th className="px-3 py-2.5">Status</th>
           </tr>
         </thead>
         <tbody>
@@ -51,37 +50,23 @@ export default function ThirdPlaceTable({ results }: ThirdPlaceTableProps) {
                 )}
               >
                 <td className="px-3 py-2 font-medium tabular-nums">{idx + 1}</td>
-                <td className="px-3 py-2 font-semibold text-navy">{r.groupId}</td>
                 <td className="px-3 py-2 font-medium">
                   <span className="inline-flex items-center gap-1.5">
                     {team && <span className="text-sm">{flagEmoji(team.flagCode)}</span>}
-                    {team?.name ?? r.teamId}
+                    <span className="truncate">{team?.name ?? r.teamId}</span>
                   </span>
                 </td>
-                <td className="px-3 py-2 text-center tabular-nums">{s.played}</td>
-                <td className="px-3 py-2 text-center tabular-nums">{s.won}</td>
-                <td className="px-3 py-2 text-center tabular-nums">{s.drawn}</td>
-                <td className="px-3 py-2 text-center tabular-nums">{s.lost}</td>
-                <td className="px-3 py-2 text-center tabular-nums">{s.goalsFor}</td>
-                <td className="px-3 py-2 text-center tabular-nums">{s.goalsAgainst}</td>
+                <td className="px-3 py-2 font-semibold text-navy">{r.groupId}</td>
+                <td className="hidden md:table-cell px-3 py-2 text-center tabular-nums">{s.played}</td>
+                <td className="hidden md:table-cell px-3 py-2 text-center tabular-nums">{s.won}</td>
+                <td className="hidden md:table-cell px-3 py-2 text-center tabular-nums">{s.drawn}</td>
+                <td className="hidden md:table-cell px-3 py-2 text-center tabular-nums">{s.lost}</td>
+                <td className="hidden md:table-cell px-3 py-2 text-center tabular-nums">{s.goalsFor}</td>
+                <td className="hidden md:table-cell px-3 py-2 text-center tabular-nums">{s.goalsAgainst}</td>
                 <td className="px-3 py-2 text-center tabular-nums">
                   {s.goalDifference > 0 ? `+${s.goalDifference}` : s.goalDifference}
                 </td>
                 <td className="px-3 py-2 text-center font-extrabold text-ink tabular-nums">{s.points}</td>
-                <td className="px-3 py-2">
-                  {r.qualified ? (
-                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-win-ink">
-                      Qualified
-                      {r.matchSlot !== null && (
-                        <span className="text-[10px] text-win-ink/60">
-                          {' '}M{r.matchSlot}
-                        </span>
-                      )}
-                    </span>
-                  ) : (
-                    <span className="text-xs font-semibold text-out-ink">Eliminated</span>
-                  )}
-                </td>
               </tr>
             )
           })}

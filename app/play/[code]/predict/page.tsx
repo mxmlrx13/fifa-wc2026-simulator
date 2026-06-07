@@ -22,6 +22,8 @@ import { quickFillGroupMatches, quickFillKnockoutPicks } from '@/lib/engine/quic
 import GroupCard from '@/components/groups/GroupCard'
 import GroupStandingsTable from '@/components/groups/GroupStandingsTable'
 import ChampionPicker from '@/components/multiplayer/ChampionPicker'
+import ThirdPlaceTable from '@/components/standings/ThirdPlaceTable'
+import QualifiedTeamsGrid from '@/components/standings/QualifiedTeamsGrid'
 import SavePill from '@/components/ui/SavePill'
 import PointsChip from '@/components/ui/PointsChip'
 import Skeleton from '@/components/ui/Skeleton'
@@ -50,7 +52,7 @@ function GroupPhaseInner({
   readOnly: boolean
   onQuickFill?: () => void
 }) {
-  const { state, groupStandings } = useTournament()
+  const { state, groupStandings, thirdPlaceResults } = useTournament()
   const [activeTab, setActiveTab] = useState<GroupTab>('groups')
 
   const completedGroupMatches = state.groupMatches.filter(
@@ -145,6 +147,34 @@ function GroupPhaseInner({
               </div>
             ))}
           </div>
+
+          {/* Best third-placed teams */}
+          {thirdPlaceResults.length > 0 && (
+            <section className="mt-8">
+              <h2 className="mb-3 text-[10px] font-bold uppercase tracking-[0.09em] text-muted">
+                Best third-placed teams
+              </h2>
+              <ThirdPlaceTable results={thirdPlaceResults} />
+              <p className="mt-2 text-[10px] text-muted">
+                Ranked by points, goal difference, goals scored, then FIFA ranking (team conduct is not trackable here).
+              </p>
+            </section>
+          )}
+
+          {/* Qualified for the knockouts */}
+          {completedGroupMatches > 0 && (
+            <section className="mt-8">
+              <h2 className="mb-3 text-[10px] font-bold uppercase tracking-[0.09em] text-muted">
+                Qualified for the knockouts
+              </h2>
+              <div className="rounded-[var(--radius-card)] border border-line bg-card p-4">
+                <QualifiedTeamsGrid
+                  groupStandings={groupStandings}
+                  thirdPlaceResults={thirdPlaceResults}
+                />
+              </div>
+            </section>
+          )}
         </div>
       )}
 

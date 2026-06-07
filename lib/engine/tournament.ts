@@ -41,10 +41,9 @@ export function computeTournament(state: TournamentState): {
     }
   }
 
-  // 2. Compute best third-place teams (only meaningful when all groups are done)
-  let thirdPlaceResults: ThirdPlaceResult[] = []
+  // 2. Compute best third-place teams (ranked from partial data; slots assigned only when complete)
+  let thirdPlaceResults = rankThirdPlaceTeams(groupStandings, teamsMap)
   if (allGroupsComplete) {
-    thirdPlaceResults = rankThirdPlaceTeams(groupStandings, teamsMap)
     thirdPlaceResults = assignThirdPlaceToSlots(thirdPlaceResults)
   }
 

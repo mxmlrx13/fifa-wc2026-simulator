@@ -264,6 +264,7 @@ Compare each screen against `design-refs/screens.html`:
 - [ ] 18.13 Netlify env vars set (NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, NEXT_PUBLIC_ENABLE_DEADLINES)
 - [ ] 18.14 Production deploy successful
 - [ ] 18.15 Live smoke test: create game, join, predict, lock, enter results
+- [ ] Jun 27: compare app R32 fixtures against the official bracket; use Adjust R32 fixtures if they differ.
 
 ---
 

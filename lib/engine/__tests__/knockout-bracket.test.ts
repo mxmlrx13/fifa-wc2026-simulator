@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { assignThirdPlaceToSlots, populateBracket } from '@/lib/engine/knockout-bracket'
+import { assignThirdPlaceToSlots, populateBracket, applyR32Overrides } from '@/lib/engine/knockout-bracket'
 import type { GroupId, GroupStanding, ThirdPlaceResult } from '@/lib/types'
 import type { BracketMatch } from '@/lib/data/bracket-template'
 
@@ -166,5 +166,42 @@ describe('populateBracket', () => {
     const thirdPlace = result.find((m) => m.id === 103)!
     expect(thirdPlace.homeTeamId).toBe('B1') // Loser of 101
     expect(thirdPlace.awayTeamId).toBe('C1')
+  })
+})
+
+describe('applyR32Overrides', () => {
+  it('swaps third-place team in an R32 slot', () => {
+    const matches = [
+      { id: 74, round: 'R32' as const, homeSlot: '1E', awaySlot: '3{A,B,C,D,F}', homeTeamId: 'E1', awayTeamId: 'A3', winnerId: null },
+      { id: 77, round: 'R32' as const, homeSlot: '1I', awaySlot: '3{C,D,F,G,H}', homeTeamId: 'I1', awayTeamId: 'C3', winnerId: null },
+      { id: 89, round: 'R16' as const, homeSlot: 'W74', awaySlot: 'W77', homeTeamId: null, awayTeamId: null, winnerId: null },
+    ]
+
+    const result = applyR32Overrides(matches, { '74': 'D3', '77': 'F3' })
+
+    expect(result[0].awayTeamId).toBe('D3')
+    expect(result[1].awayTeamId).toBe('F3')
+    // R16 match is not affected
+    expect(result[2].homeTeamId).toBeNull()
+  })
+
+  it('does not modify non-R32 matches', () => {
+    const matches = [
+      { id: 89, round: 'R16' as const, homeSlot: 'W74', awaySlot: 'W77', homeTeamId: 'E1', awayTeamId: 'I1', winnerId: null },
+    ]
+
+    const result = applyR32Overrides(matches, { '89': 'FAKE' })
+    expect(result[0].homeTeamId).toBe('E1')
+    expect(result[0].awayTeamId).toBe('I1')
+  })
+
+  it('returns a new array (no mutation)', () => {
+    const matches = [
+      { id: 74, round: 'R32' as const, homeSlot: '1E', awaySlot: '3{A,B,C,D,F}', homeTeamId: 'E1', awayTeamId: 'A3', winnerId: null },
+    ]
+
+    const result = applyR32Overrides(matches, { '74': 'D3' })
+    expect(result).not.toBe(matches)
+    expect(matches[0].awayTeamId).toBe('A3') // original unchanged
   })
 })

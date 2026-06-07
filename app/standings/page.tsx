@@ -45,12 +45,15 @@ export default function StandingsPage() {
       </section>
 
       {/* Third-place ranking */}
-      {allGroupsComplete && thirdPlaceResults.length > 0 && (
+      {thirdPlaceResults.length > 0 && (
         <section className="mb-8">
           <h2 className="mb-4 text-[10px] font-bold uppercase tracking-[0.09em] text-muted">
             Third-Place Ranking
           </h2>
           <ThirdPlaceTable results={thirdPlaceResults} />
+          <p className="mt-2 text-[10px] text-muted">
+            Ranked by points, goal difference, goals scored, then FIFA ranking (team conduct is not trackable here).
+          </p>
         </section>
       )}
 

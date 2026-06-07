@@ -1,6 +1,6 @@
 # FIFA WC 2026 Prediction Game — Handover Document
 
-Last updated: 2026-06-07
+Last updated: 2026-06-07 | **v1.0.1** — third-place verification, R32 host override, standings UI
 
 ---
 
@@ -172,15 +172,15 @@ lib/
     tournament.ts                     Orchestrator: standings → 3rd place → bracket → champion.
     group-standings.ts                Group table calculation from match scores.
     tiebreakers.ts                    FIFA 8-step tiebreaker cascade.
-    best-third-place.ts              Rank 12 third-place teams, qualify top 8.
-    knockout-bracket.ts              CSP backtracking for 3rd-place assignment. Slot resolution.
+    best-third-place.ts              Rank 12 third-place teams, qualify top 8. Criteria: pts→GD→GF→FIFA ranking (team conduct skipped).
+    knockout-bracket.ts              CSP backtracking for 3rd-place assignment. Slot resolution. applyR32Overrides() for host corrections.
     rounds.ts                         RoundKey (result batches) ↔ match ID mapping. Labels.
     scoring.ts                        Tiered group scoring. computePoints() function.
     host-actions.ts                   getHostNextAction() — pure function for host's single next action.
     quick-fill.ts                     Ranking-based score generation for quick-fill. Deterministic PRNG.
     consensus.ts                      Champion votes, group winner consensus, boldest picks, pick splits.
     leaderboard.ts                    computeLeaderboard(), computeMovement(), getPreviousBatch(). Shared-rank logic.
-    __tests__/                        Test files (225+ tests total).
+    __tests__/                        Test files (234+ tests total).
 
   supabase/
     client.ts                         Browser-side Supabase client (anon key).
@@ -448,6 +448,16 @@ Host transfer: PATCH `/api/games/[code]/round` with `{ action: 'transfer_host', 
 ### Player Removal
 
 DELETE `/api/games/[code]/players/[playerId]`. Host cannot leave without transferring first (returns 400). Cascading FKs clean up predictions and scores.
+
+### R32 Third-Place Assignment & Host Override
+
+The CSP solver in `knockout-bracket.ts` assigns qualified third-place teams to R32 slots via deterministic backtracking (stable iteration order: slots processed in `thirdPlaceSlots` array order, teams tried in ranking order). Slot constraints in `third-place-clusters.ts` are verified against the official FIFA 2026 bracket (ESPN/FIFA source).
+
+**Caveat:** FIFA publishes 495 preset scenarios (Annex C). When multiple valid CSP assignments exist, our solver's first-found solution may differ from FIFA's official announcement. For player predictions this is harmless. For the real bracket (from official results), the host can correct mismatches using:
+
+- **API:** `PATCH /api/games/[code]/bracket-overrides` with `{ overrides: { "matchId": "teamId" } }` — host-only, only before R32 is locked.
+- **Storage:** `games.r32_overrides` JSONB column (MIGRATION-006).
+- **Application:** `GET /api/games/[code]/bracket` applies overrides after CSP resolution via `applyR32Overrides()`.
 
 ---
 
@@ -858,3 +868,4 @@ Dumps all 7 tables to `backups/<ISO-timestamp>/` as JSON files. Restore order (F
 | MIGRATION-003 | Added champion_pick to players, predicted/actual_winner_id to scores |
 | MIGRATION-004 | Added recovery_token to players |
 | MIGRATION-005 | Added winner_id to predictions and official_results |
+| MIGRATION-006 | Added r32_overrides (JSONB) to games for host R32 third-place corrections |
