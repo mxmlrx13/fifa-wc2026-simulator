@@ -61,9 +61,16 @@ export function quickFillGroupMatches(
   return { filled, filledIds }
 }
 
+export interface KnockoutPrediction {
+  homeScore: number | null
+  awayScore: number | null
+  winnerId: string
+}
+
 /**
- * Pick the higher-ranked team as winner for unfilled knockout fixtures.
- * Returns a map of matchId → winnerId for newly picked matches.
+ * Generate score-based knockout predictions for unfilled fixtures.
+ * Uses ranking-based scoring (same model as groups) and re-rolls ties
+ * so the winner is always deterministic from the score.
  */
 export function quickFillKnockoutPicks(
   fixtures: Array<{
@@ -71,20 +78,29 @@ export function quickFillKnockoutPicks(
     homeTeamId: string | null
     awayTeamId: string | null
   }>,
-  existingPicks: Record<number, string>,
-): Record<number, string> {
-  const newPicks: Record<number, string> = {}
+  existingPicks: Record<number, KnockoutPrediction | string>,
+): Record<number, KnockoutPrediction> {
+  const newPicks: Record<number, KnockoutPrediction> = {}
 
   for (const f of fixtures) {
-    // Skip already picked or unresolved slots
     if (existingPicks[f.matchId]) continue
     if (!f.homeTeamId || !f.awayTeamId) continue
 
     const homeRank = teamsMap[f.homeTeamId]?.fifaRanking ?? 50
     const awayRank = teamsMap[f.awayTeamId]?.fifaRanking ?? 50
 
-    // Lower rank number = better team
-    newPicks[f.matchId] = homeRank <= awayRank ? f.homeTeamId : f.awayTeamId
+    // Generate a non-tied score
+    let seed = f.matchId
+    let homeScore: number, awayScore: number
+    do {
+      ;[homeScore, awayScore] = generateGroupScore(f.homeTeamId, f.awayTeamId, seed)
+      seed += 1000
+    } while (homeScore === awayScore)
+
+    // Winner is the higher scorer
+    const winnerId = homeScore > awayScore ? f.homeTeamId : f.awayTeamId
+
+    newPicks[f.matchId] = { homeScore, awayScore, winnerId }
   }
 
   return newPicks

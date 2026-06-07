@@ -351,13 +351,21 @@ export default function BreakdownPage({ params }: { params: Promise<{ code: stri
                       // Build tip/result text
                       let tipText = ''
                       if (match.isKnockout) {
-                        const pickId = match.prediction?.winner_id
-                        const resultId = match.officialResult?.winner_id
-                        tipText = hasPrediction
-                          ? `pick: ${pickId ?? '?'}`
-                          : ''
-                        if (hasResult && resultId) {
-                          tipText += tipText ? ` \u00B7 result: ${resultId}` : `result: ${resultId}`
+                        if (hasPrediction) {
+                          const p = match.prediction!
+                          const scoreStr = p.home_score !== null && p.away_score !== null
+                            ? `${p.home_score}:${p.away_score}` : '?:?'
+                          const winnerStr = p.winner_id ? ` (${p.winner_id})` : ''
+                          tipText = `tip ${scoreStr}${winnerStr}`
+                        }
+                        if (hasResult) {
+                          const r = match.officialResult!
+                          const rScore = r.home_score !== null && r.away_score !== null
+                            ? `${r.home_score}:${r.away_score}` : '?:?'
+                          const rWinner = r.winner_id ? ` (${r.winner_id})` : ''
+                          tipText += tipText
+                            ? ` \u00B7 result ${rScore}${rWinner}`
+                            : `result ${rScore}${rWinner}`
                         }
                       } else {
                         if (hasPrediction) {

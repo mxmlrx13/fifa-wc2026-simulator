@@ -159,12 +159,26 @@ export default function PredictionComparison({
                       (pr) => pr.player_id === p.id && pr.match_id === matchId,
                     )
 
-                    if (!isGroup && pred?.winner_id) {
+                    if (!isGroup) {
+                      // Knockout: show score + winner indicator
+                      if (pred && pred.home_score !== null && pred.away_score !== null) {
+                        const isTied = pred.home_score === pred.away_score
+                        return (
+                          <td key={p.id} className="px-3 py-2 text-center">
+                            <span className="font-mono font-extrabold tabular-nums text-[12px]">
+                              {pred.home_score}-{pred.away_score}
+                            </span>
+                            {pred.winner_id && (
+                              <span className="ml-1 text-[9px] font-bold text-navy">
+                                {isTied ? `(${pred.winner_id})` : ''}
+                              </span>
+                            )}
+                          </td>
+                        )
+                      }
                       return (
                         <td key={p.id} className="px-3 py-2 text-center">
-                          <span className="font-mono font-extrabold text-navy tabular-nums text-[11px]">
-                            {pred.winner_id}
-                          </span>
+                          <span className="text-muted">&ndash;</span>
                         </td>
                       )
                     }

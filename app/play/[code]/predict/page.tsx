@@ -18,8 +18,9 @@ import {
   type PredictionRoundKey,
 } from '@/lib/constants'
 import PredictionProvider from '@/components/multiplayer/PredictionProvider'
-import { quickFillGroupMatches, quickFillKnockoutPicks } from '@/lib/engine/quick-fill'
+import { quickFillGroupMatches, quickFillKnockoutPicks, type KnockoutPrediction } from '@/lib/engine/quick-fill'
 import GroupCard from '@/components/groups/GroupCard'
+import ScoreInput from '@/components/shared/ScoreInput'
 import GroupStandingsTable from '@/components/groups/GroupStandingsTable'
 import ChampionPicker from '@/components/multiplayer/ChampionPicker'
 import ThirdPlaceTable from '@/components/standings/ThirdPlaceTable'
@@ -219,7 +220,8 @@ function KnockoutPhaseInner({
   activeRound,
   fixtures,
   picks,
-  onPick,
+  onScoreChange,
+  onShootoutPick,
   readOnly,
   scoredMatchPoints,
   onQuickFill,
@@ -227,8 +229,9 @@ function KnockoutPhaseInner({
   rounds: GameRound[]
   activeRound: PredictionRoundKey
   fixtures: KnockoutFixture[]
-  picks: Record<number, string>
-  onPick: (matchId: number, winnerId: string) => void
+  picks: Record<number, KnockoutPrediction>
+  onScoreChange: (matchId: number, side: 'home' | 'away', value: number | null) => void
+  onShootoutPick: (matchId: number, winnerId: string) => void
   readOnly: boolean
   scoredMatchPoints?: Map<number, number>
   onQuickFill?: () => void
@@ -244,9 +247,17 @@ function KnockoutPhaseInner({
   const roundFixtures = fixtures.filter((f) => f.matchId >= min && f.matchId <= max)
   const isRoundOpen = roundStatus(selectedRound) === 'open'
 
-  const pickCount = Object.keys(picks).filter((id) => {
+  // A pick is "complete" when it has a winnerId (derived from non-tied score, or shootout pick)
+  const pickCount = Object.entries(picks).filter(([id, p]) => {
     const n = Number(id)
-    return n >= min && n <= max
+    return n >= min && n <= max && p.winnerId
+  }).length
+
+  // Count tied matches without shootout pick (pending resolution)
+  const pendingShootouts = roundFixtures.filter((f) => {
+    const p = picks[f.matchId]
+    return p && p.homeScore !== null && p.awayScore !== null &&
+      p.homeScore === p.awayScore && !p.winnerId
   }).length
 
   return (
@@ -284,7 +295,12 @@ function KnockoutPhaseInner({
           {pickCount}/{roundFixtures.length} picks
           {isRoundOpen && (
             <span className="ml-2 text-navy">
-              ({getKnockoutPointsForMatch(min)} pts each)
+              ({getKnockoutPointsForMatch(min)} pts · exact +2)
+            </span>
+          )}
+          {pendingShootouts > 0 && (
+            <span className="ml-2 text-red">
+              ({pendingShootouts} need{pendingShootouts === 1 ? 's' : ''} shootout pick)
             </span>
           )}
         </p>
@@ -294,7 +310,7 @@ function KnockoutPhaseInner({
             onClick={onQuickFill}
             className="rounded-[var(--radius-button)] border border-line bg-paper px-2.5 py-1 text-[10px] font-semibold text-ink transition-all hover:bg-card"
           >
-            Pick remaining by ranking
+            Quick-fill remaining
           </button>
         )}
       </div>
@@ -304,10 +320,14 @@ function KnockoutPhaseInner({
         {roundFixtures.map((fixture) => {
           const homeTeam = fixture.homeTeamId ? teamsMap[fixture.homeTeamId] : null
           const awayTeam = fixture.awayTeamId ? teamsMap[fixture.awayTeamId] : null
-          const canPick = isRoundOpen && !readOnly && homeTeam !== null && awayTeam !== null
-          const picked = picks[fixture.matchId]
-          const homeIsPicked = picked === fixture.homeTeamId
-          const awayIsPicked = picked === fixture.awayTeamId
+          const canEdit = isRoundOpen && !readOnly && homeTeam !== null && awayTeam !== null
+          const pick = picks[fixture.matchId]
+          const homeScore = pick?.homeScore ?? null
+          const awayScore = pick?.awayScore ?? null
+          const winnerId = pick?.winnerId ?? null
+          const isTied = homeScore !== null && awayScore !== null && homeScore === awayScore
+          const hasScores = homeScore !== null && awayScore !== null
+          const isComplete = hasScores && winnerId !== null
 
           // Scored state
           const matchPoints = scoredMatchPoints?.get(fixture.matchId)
@@ -329,75 +349,117 @@ function KnockoutPhaseInner({
               )}
               <div className={cn(
                 'rounded-[var(--radius-card)] border overflow-hidden transition-all',
-                picked ? 'border-red-line' : 'border-line',
+                isComplete ? 'border-red-line' : isTied && hasScores ? 'border-red/50' : 'border-line',
               )}>
                 {/* Match label */}
                 <div className="border-b border-line bg-paper px-3 py-1 text-[10px] font-bold uppercase tracking-[0.09em] text-muted">
                   M{fixture.matchId}
                   {isScored && matchPoints !== undefined && (
                     <span className="float-right">
-                      <PointsChip tier={matchPoints > 0 ? 'exact' : 'zero'}>
+                      <PointsChip tier={matchPoints >= 5 ? 'exact' : matchPoints > 0 ? 'gd' : 'zero'}>
                         {matchPoints}
                       </PointsChip>
                     </span>
                   )}
                 </div>
 
-                {/* Home team row */}
-                <button
-                  type="button"
-                  disabled={!canPick}
-                  onClick={() => fixture.homeTeamId && onPick(fixture.matchId, fixture.homeTeamId)}
-                  className={cn(
-                    'flex w-full items-center gap-2 border-b border-line px-3 py-2.5 text-left transition-all',
-                    canPick && 'cursor-pointer hover:bg-paper',
-                    !canPick && 'cursor-default',
-                    homeIsPicked && !isScored && 'bg-red-soft border-l-[1.5px] border-l-red',
-                    homeIsPicked && isScored && matchPoints! > 0 && 'bg-win-soft border-l-[1.5px] border-l-win-ink',
-                    homeIsPicked && isScored && matchPoints === 0 && 'bg-card text-muted border-l-[1.5px] border-l-transparent',
-                    !homeIsPicked && awayIsPicked && 'opacity-50',
-                    !homeIsPicked && !awayIsPicked && 'border-l-[1.5px] border-l-transparent',
-                  )}
-                >
-                  {homeTeam ? (
-                    <>
-                      <span className="text-base leading-none">{flagEmoji(homeTeam.flagCode)}</span>
-                      <span className="text-xs font-bold flex-1">{homeTeam.id}</span>
-                      {homeIsPicked && !isScored && <span className="text-xs text-red">{'\u2713'}</span>}
-                      {homeIsPicked && isScored && matchPoints! > 0 && <span className="text-xs text-win-ink">{'\u2713'}</span>}
-                    </>
-                  ) : (
-                    <span className="text-[10px] italic text-muted">{slotLabel(fixture.homeSlot)}</span>
-                  )}
-                </button>
+                {/* Score row */}
+                <div className="flex items-center gap-2 px-3 py-2.5">
+                  {/* Home team */}
+                  <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5 text-right">
+                    {homeTeam ? (
+                      <>
+                        <span className="truncate text-xs font-bold">{homeTeam.id}</span>
+                        <span className="text-base leading-none">{flagEmoji(homeTeam.flagCode)}</span>
+                      </>
+                    ) : (
+                      <span className="text-[10px] italic text-muted">{slotLabel(fixture.homeSlot)}</span>
+                    )}
+                  </div>
 
-                {/* Away team row */}
-                <button
-                  type="button"
-                  disabled={!canPick}
-                  onClick={() => fixture.awayTeamId && onPick(fixture.matchId, fixture.awayTeamId)}
-                  className={cn(
-                    'flex w-full items-center gap-2 px-3 py-2.5 text-left transition-all',
-                    canPick && 'cursor-pointer hover:bg-paper',
-                    !canPick && 'cursor-default',
-                    awayIsPicked && !isScored && 'bg-red-soft border-l-[1.5px] border-l-red',
-                    awayIsPicked && isScored && matchPoints! > 0 && 'bg-win-soft border-l-[1.5px] border-l-win-ink',
-                    awayIsPicked && isScored && matchPoints === 0 && 'bg-card text-muted border-l-[1.5px] border-l-transparent',
-                    !awayIsPicked && homeIsPicked && 'opacity-50',
-                    !awayIsPicked && !homeIsPicked && 'border-l-[1.5px] border-l-transparent',
+                  {/* Score inputs */}
+                  <div className="flex items-center gap-1.5">
+                    {canEdit ? (
+                      <>
+                        <ScoreInput
+                          value={homeScore}
+                          onChange={(v) => onScoreChange(fixture.matchId, 'home', v)}
+                        />
+                        <span className="text-xs font-bold text-muted">-</span>
+                        <ScoreInput
+                          value={awayScore}
+                          onChange={(v) => onScoreChange(fixture.matchId, 'away', v)}
+                        />
+                      </>
+                    ) : (
+                      <span className="px-2 text-sm font-extrabold tabular-nums text-ink">
+                        {homeScore ?? '–'} - {awayScore ?? '–'}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Away team */}
+                  <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                    {awayTeam ? (
+                      <>
+                        <span className="text-base leading-none">{flagEmoji(awayTeam.flagCode)}</span>
+                        <span className="truncate text-xs font-bold">{awayTeam.id}</span>
+                      </>
+                    ) : (
+                      <span className="text-[10px] italic text-muted">{slotLabel(fixture.awaySlot)}</span>
+                    )}
+                  </div>
+
+                  {/* Winner indicator (non-tied) */}
+                  {hasScores && !isTied && winnerId && (
+                    <span className="text-xs text-red">{'\u2713'}</span>
                   )}
-                >
-                  {awayTeam ? (
-                    <>
-                      <span className="text-base leading-none">{flagEmoji(awayTeam.flagCode)}</span>
-                      <span className="text-xs font-bold flex-1">{awayTeam.id}</span>
-                      {awayIsPicked && !isScored && <span className="text-xs text-red">{'\u2713'}</span>}
-                      {awayIsPicked && isScored && matchPoints! > 0 && <span className="text-xs text-win-ink">{'\u2713'}</span>}
-                    </>
-                  ) : (
-                    <span className="text-[10px] italic text-muted">{slotLabel(fixture.awaySlot)}</span>
-                  )}
-                </button>
+                </div>
+
+                {/* Shootout picker — appears when scores are tied */}
+                {isTied && homeTeam && awayTeam && (
+                  <div className={cn(
+                    'border-t border-line px-3 py-2',
+                    !winnerId ? 'bg-red-soft/30' : 'bg-paper',
+                  )}>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className={cn(
+                        'font-semibold',
+                        !winnerId ? 'text-red' : 'text-muted',
+                      )}>
+                        {canEdit ? (winnerId ? 'Shootout:' : 'Pick shootout winner:') : 'Shootout:'}
+                      </span>
+                      {canEdit ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => onShootoutPick(fixture.matchId, homeTeam.id)}
+                            className={cn(
+                              'rounded px-2 py-0.5 font-bold transition-all',
+                              winnerId === homeTeam.id ? 'bg-navy text-paper' : 'bg-out-soft hover:bg-line',
+                            )}
+                          >
+                            {homeTeam.id}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onShootoutPick(fixture.matchId, awayTeam.id)}
+                            className={cn(
+                              'rounded px-2 py-0.5 font-bold transition-all',
+                              winnerId === awayTeam.id ? 'bg-navy text-paper' : 'bg-out-soft hover:bg-line',
+                            )}
+                          >
+                            {awayTeam.id}
+                          </button>
+                        </>
+                      ) : winnerId ? (
+                        <span className="font-bold text-ink">{winnerId}</span>
+                      ) : (
+                        <span className="text-muted">—</span>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )
@@ -431,11 +493,11 @@ function PredictInner({
   const stateRef = useRef(state)
   const [showQuickFillBanner, setShowQuickFillBanner] = useState(false)
   const championPickRef = useRef(currentChampionPick)
-  const knockoutPicksRef = useRef<Record<number, string>>({})
+  const knockoutPicksRef = useRef<Record<number, KnockoutPrediction>>({})
 
   const [championPick, setChampionPick] = useState<string | null>(currentChampionPick)
   const [knockoutFixtures, setKnockoutFixtures] = useState<KnockoutFixture[]>([])
-  const [knockoutPicks, setKnockoutPicks] = useState<Record<number, string>>({})
+  const [knockoutPicks, setKnockoutPicks] = useState<Record<number, KnockoutPrediction>>({})
   const [scoredMatchPoints, setScoredMatchPoints] = useState<Map<number, number>>(new Map())
 
   // Keep refs in sync via effects
@@ -463,8 +525,15 @@ function PredictInner({
         }
       }
 
-      for (const [matchId, winnerId] of Object.entries(currentKoPicks)) {
-        predictions.push({ matchId: Number(matchId), winnerId })
+      for (const [matchIdStr, pick] of Object.entries(currentKoPicks)) {
+        if (pick.winnerId && pick.homeScore !== null && pick.awayScore !== null) {
+          predictions.push({
+            matchId: Number(matchIdStr),
+            homeScore: pick.homeScore,
+            awayScore: pick.awayScore,
+            winnerId: pick.winnerId,
+          })
+        }
       }
 
       if (predictions.length === 0 && !championPickRef.current) return true
@@ -536,10 +605,14 @@ function PredictInner({
       const data = await res.json()
       if (!data.predictions?.length) return
 
-      const koPicks: Record<number, string> = {}
+      const koPicks: Record<number, KnockoutPrediction> = {}
       for (const p of data.predictions) {
-        if (p.match_id > GROUP_MATCH_MAX_ID && p.winner_id) {
-          koPicks[p.match_id] = p.winner_id
+        if (p.match_id > GROUP_MATCH_MAX_ID) {
+          koPicks[p.match_id] = {
+            homeScore: p.home_score ?? null,
+            awayScore: p.away_score ?? null,
+            winnerId: p.winner_id ?? '',
+          }
         }
       }
       setKnockoutPicks(koPicks)
@@ -568,9 +641,45 @@ function PredictInner({
   }, [code, rounds])
 
   // Handlers
-  const handleKnockoutPick = useCallback(
+  const handleKnockoutScoreChange = useCallback(
+    (matchId: number, side: 'home' | 'away', value: number | null) => {
+      setKnockoutPicks((prev) => {
+        const existing = prev[matchId] ?? { homeScore: null, awayScore: null, winnerId: '' }
+        const updated = { ...existing }
+        if (side === 'home') updated.homeScore = value
+        else updated.awayScore = value
+
+        // Auto-derive winner when scores differ
+        if (updated.homeScore !== null && updated.awayScore !== null) {
+          if (updated.homeScore !== updated.awayScore) {
+            // Find fixture to get team IDs
+            const fixture = knockoutFixtures.find((f) => f.matchId === matchId)
+            if (fixture) {
+              updated.winnerId = updated.homeScore > updated.awayScore
+                ? fixture.homeTeamId ?? ''
+                : fixture.awayTeamId ?? ''
+            }
+          } else {
+            // Tied — clear auto-derived winner, need shootout pick
+            updated.winnerId = ''
+          }
+        } else {
+          updated.winnerId = ''
+        }
+
+        return { ...prev, [matchId]: updated }
+      })
+      markDirty()
+    },
+    [markDirty, knockoutFixtures],
+  )
+
+  const handleShootoutPick = useCallback(
     (matchId: number, winnerId: string) => {
-      setKnockoutPicks((prev) => ({ ...prev, [matchId]: winnerId }))
+      setKnockoutPicks((prev) => {
+        const existing = prev[matchId] ?? { homeScore: null, awayScore: null, winnerId: '' }
+        return { ...prev, [matchId]: { ...existing, winnerId } }
+      })
       markDirty()
     },
     [markDirty],
@@ -611,10 +720,7 @@ function PredictInner({
 
   const handleQuickFillKnockout = useCallback(() => {
     const newPicks = quickFillKnockoutPicks(knockoutFixtures, knockoutPicks)
-    for (const [matchIdStr, winnerId] of Object.entries(newPicks)) {
-      const matchId = Number(matchIdStr)
-      setKnockoutPicks((prev) => ({ ...prev, [matchId]: winnerId }))
-    }
+    setKnockoutPicks((prev) => ({ ...prev, ...newPicks }))
     setShowQuickFillBanner(true)
     setTimeout(() => setShowQuickFillBanner(false), 3000)
     markDirty()
@@ -642,7 +748,8 @@ function PredictInner({
           activeRound={activeKoRound}
           fixtures={knockoutFixtures}
           picks={knockoutPicks}
-          onPick={handleKnockoutPick}
+          onScoreChange={handleKnockoutScoreChange}
+          onShootoutPick={handleShootoutPick}
           readOnly={koReadOnly}
           scoredMatchPoints={scoredMatchPoints.size > 0 ? scoredMatchPoints : undefined}
           onQuickFill={!koReadOnly ? handleQuickFillKnockout : undefined}

@@ -1,6 +1,6 @@
 # FIFA WC 2026 Prediction Game — Handover Document
 
-Last updated: 2026-06-07 | **v1.0.1** — third-place verification, R32 host override, standings UI
+Last updated: 2026-06-07 | **v1.0.2** — score-based knockout predictions with shootout-winner calls
 
 ---
 
@@ -180,7 +180,7 @@ lib/
     quick-fill.ts                     Ranking-based score generation for quick-fill. Deterministic PRNG.
     consensus.ts                      Champion votes, group winner consensus, boldest picks, pick splits.
     leaderboard.ts                    computeLeaderboard(), computeMovement(), getPreviousBatch(). Shared-rank logic.
-    __tests__/                        Test files (234+ tests total).
+    __tests__/                        Test files (243+ tests total).
 
   supabase/
     client.ts                         Browser-side Supabase client (anon key).
@@ -377,18 +377,25 @@ Returns `{ points: number, reason: 'exact' | 'result_gd' | 'result' | 'wrong' }`
 
 ### Knockout Matches (match IDs 73–104)
 
-Escalating points per round, defined in `lib/constants.ts`:
+Players predict a full scoreline (homeScore + awayScore) plus a winner. If scores are tied, a shootout-winner pick is required. Scoring uses escalating base points per round plus an exact-score bonus:
 
-| Round | Match IDs | Points per correct winner |
-|-------|-----------|--------------------------|
-| Round of 32 | 73–88 | 3 |
-| Round of 16 | 89–96 | 4 |
-| Quarter-finals | 97–100 | 5 |
-| Semi-finals | 101–102 | 6 |
-| Third-place match | 103 | 6 |
-| Final | 104 | 8 |
+| Round | Match IDs | Base (correct winner) | Exact bonus | Max |
+|-------|-----------|----------------------|-------------|-----|
+| Round of 32 | 73–88 | 3 | +2 | 5 |
+| Round of 16 | 89–96 | 4 | +2 | 6 |
+| Quarter-finals | 97–100 | 5 | +2 | 7 |
+| Semi-finals | 101–102 | 6 | +2 | 8 |
+| Third-place match | 103 | 6 | +2 | 8 |
+| Final | 104 | 8 | +2 | 10 |
 
-Implemented via `getKnockoutPointsForMatch(matchId)`. No partial credit.
+Base points via `getKnockoutPointsForMatch(matchId)`, bonus via `KNOCKOUT_EXACT_BONUS` (2). Wrong winner = 0 regardless of score.
+
+**Worked examples:**
+- Predicted 2-1 (BRA), actual 3-0 (BRA) → correct winner → 3 pts (R32)
+- Predicted 2-1 (BRA), actual 2-1 (BRA) → correct + exact → 3+2 = 5 pts (R32)
+- Predicted 1-1 (BRA shootout), actual 1-1 (BRA shootout) → correct + exact → 3+2 = 5 pts
+- Predicted 1-1 (BRA shootout), actual 1-1 (ARG shootout) → wrong winner → 0 pts
+- Predicted 2-0 (BRA), actual 0-1 (ARG) → wrong winner → 0 pts
 
 ### Champion Bonus
 
@@ -489,7 +496,7 @@ The CSP solver in `knockout-bracket.ts` assigns qualified third-place teams to R
 2. Validate `batch` key and round status (must be `locked` or `scored`)
 3. Reject knockout draws without `winnerId` (400)
 4. Upsert `official_results`
-5. Compute scores for all players: group matches use `computePoints()`, knockout matches compare `winner_id` for escalating points
+5. Compute scores for all players: group matches use `computePoints()`, knockout matches compare `winner_id` for base points (3/4/5/6/6/8) + exact scoreline bonus (+2 via `KNOCKOUT_EXACT_BONUS`). Example: R32 correct winner = 3 pts; R32 correct winner + exact score = 5 pts; wrong winner = 0 pts regardless of score
 6. Upsert `scores`
 7. Champion bonus: if final result entered, award `match_id = 0` rows
 8. Auto-transition: if all matches in prediction round have results, mark `scored` and open next `pending` round
@@ -662,9 +669,9 @@ The React compiler flags `setState` calls at the top of `useEffect` bodies in se
 
 ### Test structure
 
-17 test files in `lib/engine/__tests__/`, 225+ tests covering:
+17 test files in `lib/engine/__tests__/`, 243+ tests covering:
 
-- `scoring.test.ts` — Group match scoring tiers (5/3/1/0)
+- `scoring.test.ts` — Group match scoring tiers (5/3/1/0), knockout scoring with exact bonus
 - `leaderboard.test.ts` — Tiebreaker ordering, shared ranks, multi-batch snapshot progression, movement matrix
 - `results-validation.test.ts` — Batch validation, knockout draw detection
 - `player-management.test.ts` — Removal permissions, host transfer, recovery tokens

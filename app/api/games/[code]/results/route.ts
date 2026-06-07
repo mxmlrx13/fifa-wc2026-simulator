@@ -5,6 +5,7 @@ import { computeLeaderboard } from '@/lib/engine/leaderboard'
 import {
   getPredictionRoundForMatchId,
   getKnockoutPointsForMatch,
+  KNOCKOUT_EXACT_BONUS,
   PREDICTION_ROUNDS,
   FINAL_MATCH_ID,
   CHAMPION_BONUS,
@@ -151,9 +152,15 @@ export async function POST(
       if (isKnockoutBatch) {
         const actualWinnerId = actual.winner_id
         const predictedWinnerId = p.winner_id
-        const points = (predictedWinnerId && actualWinnerId && predictedWinnerId === actualWinnerId)
-          ? getKnockoutPointsForMatch(p.match_id)
-          : 0
+        const correctWinner = !!(predictedWinnerId && actualWinnerId && predictedWinnerId === actualWinnerId)
+        let points = 0
+        if (correctWinner) {
+          points = getKnockoutPointsForMatch(p.match_id)
+          // Exact scoreline bonus
+          if (p.home_score === actual.home_score && p.away_score === actual.away_score) {
+            points += KNOCKOUT_EXACT_BONUS
+          }
+        }
         return {
           player_id: p.player_id,
           game_id: game.id,

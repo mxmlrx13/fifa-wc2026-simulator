@@ -127,13 +127,17 @@ Estimated time: 20 minutes. Requires two browsers (e.g. Chrome + Firefox) and on
 
 ---
 
-## 10. R32 Picks on Real Bracket (Browser B)
+## 10. R32 Score Predictions on Real Bracket (Browser B)
 
 | # | Action | Expected | Pass |
 |---|--------|----------|------|
-| 10.1 | Navigate to predict page for R32 | Bracket shows with real teams from official results | [ ] |
-| 10.2 | Pick winners for all 16 R32 matches | Selections highlight in red. Each pick propagates to next round | [ ] |
-| 10.3 | Save R32 predictions | Save succeeds | [ ] |
+| 10.1 | Navigate to predict page for R32 | Score input cards visible with real teams from official results | [ ] |
+| 10.2 | Enter scores for an R32 match (e.g. 2-1) | Winner auto-derived from score. Card border changes to red-line | [ ] |
+| 10.3 | Enter tied scores (e.g. 1-1) | Shootout picker appears below: two team buttons | [ ] |
+| 10.4 | Pick shootout winner | Winner set, card completes. Pick count increments | [ ] |
+| 10.5 | Try to save with a tied match without shootout pick | Auto-save holds (SavePill doesn't fire). Pending count shown | [ ] |
+| 10.6 | Resolve all shootout picks, fill all 16 R32 matches | "16/16 picks" shown. Save succeeds | [ ] |
+| 10.7 | Quick-fill remaining R32 matches | All unfilled matches get score-based predictions (no ties) | [ ] |
 
 ---
 
@@ -249,7 +253,7 @@ Compare each screen against `design-refs/screens.html`:
 
 ## 18. Pre-Release Audit (automated)
 
-- [x] 18.1 All 225 unit/integration tests pass (17 files)
+- [x] 18.1 All 243 unit/integration tests pass (17 files)
 - [x] 18.2 Production build clean (no warnings)
 - [x] 18.3 No secret leakage in .next/static/ or git history
 - [x] 18.4 API lifecycle test: 24/24 assertions (create->join->predict->lock->score->knockout->champion->cleanup)

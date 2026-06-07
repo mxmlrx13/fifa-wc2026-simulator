@@ -3,6 +3,7 @@ import { computePoints } from '../scoring'
 import { computeLeaderboard, computeMovement } from '../leaderboard'
 import {
   getKnockoutPointsForMatch,
+  KNOCKOUT_EXACT_BONUS,
   CHAMPION_BONUS,
   CHAMPION_BONUS_MATCH_ID,
   GROUP_MATCH_MAX_ID,
@@ -87,6 +88,8 @@ interface GroupPrediction {
 
 interface KnockoutPick {
   matchId: number
+  homeScore: number
+  awayScore: number
   pickedTeam: string
 }
 
@@ -159,10 +162,22 @@ function generateKnockoutPicks(
   rng: () => number,
   knockoutResults: KnockoutResult[],
 ): KnockoutPick[] {
-  return knockoutResults.map((result) => ({
-    matchId: result.matchId,
-    pickedTeam: rng() < 0.5 ? result.homeTeamId : result.awayTeamId,
-  }))
+  return knockoutResults.map((result) => {
+    const homeScore = randInt(rng, 0, 4)
+    const awayScore = randInt(rng, 0, 4)
+    // Pick a winner — if tied, pick randomly; if not, pick the higher scorer sometimes flip
+    let pickedTeam: string
+    if (homeScore === awayScore) {
+      pickedTeam = rng() < 0.5 ? result.homeTeamId : result.awayTeamId
+    } else {
+      pickedTeam = homeScore > awayScore ? result.homeTeamId : result.awayTeamId
+      // Randomly flip ~20% of the time for variety
+      if (rng() < 0.2) {
+        pickedTeam = pickedTeam === result.homeTeamId ? result.awayTeamId : result.homeTeamId
+      }
+    }
+    return { matchId: result.matchId, homeScore, awayScore, pickedTeam }
+  })
 }
 
 function generatePlayers(
@@ -199,12 +214,16 @@ function naiveTotalScore(
     groupTotal += naiveGroupPoints(pred.homeScore, pred.awayScore, result.homeScore, result.awayScore)
   }
 
-  // Knockout scoring
+  // Knockout scoring (with exact bonus)
   let knockoutTotal = 0
   for (const kPick of player.knockoutPicks) {
     const result = knockoutResults.find((r) => r.matchId === kPick.matchId)!
     if (kPick.pickedTeam === result.winnerId) {
       knockoutTotal += naiveKnockoutPointsForMatch(kPick.matchId)
+      // Exact score bonus
+      if (kPick.homeScore === result.homeScore && kPick.awayScore === result.awayScore) {
+        knockoutTotal += 2 // KNOCKOUT_EXACT_BONUS
+      }
     }
   }
 
@@ -237,12 +256,15 @@ function productionTotalScore(
     groupTotal += points
   }
 
-  // Knockout scoring — use production getKnockoutPointsForMatch
+  // Knockout scoring — use production getKnockoutPointsForMatch + exact bonus
   let knockoutTotal = 0
   for (const kPick of player.knockoutPicks) {
     const result = knockoutResults.find((r) => r.matchId === kPick.matchId)!
     if (kPick.pickedTeam === result.winnerId) {
       knockoutTotal += getKnockoutPointsForMatch(kPick.matchId)
+      if (kPick.homeScore === result.homeScore && kPick.awayScore === result.awayScore) {
+        knockoutTotal += KNOCKOUT_EXACT_BONUS
+      }
     }
   }
 
@@ -263,15 +285,15 @@ function productionTotalScore(
 // ---------------------------------------------------------------------------
 
 // 72 group matches * 5 (exact) = 360
-// R32: 16 matches * 3 = 48
-// R16: 8 matches * 4 = 32
-// QF: 4 matches * 5 = 20
-// SF: 2 matches * 6 = 12
-// 3rd place: 1 match * 6 = 6
-// Final: 1 match * 8 = 8
+// R32: 16 matches * (3+2) = 80
+// R16: 8 matches * (4+2) = 48
+// QF: 4 matches * (5+2) = 28
+// SF: 2 matches * (6+2) = 16
+// 3rd place: 1 match * (6+2) = 8
+// Final: 1 match * (8+2) = 10
 // Champion bonus: 10
-// Total: 360 + 48 + 32 + 20 + 12 + 6 + 8 + 10 = 496
-const THEORETICAL_MAX = 496
+// Total: 360 + 80 + 48 + 28 + 16 + 8 + 10 + 10 = 560
+const THEORETICAL_MAX = 560
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -318,12 +340,16 @@ describe('Full tournament simulation', () => {
     }
   })
 
-  it('generates 32 knockout picks per player, each picking one of the two teams', () => {
+  it('generates 32 knockout picks per player with scores and valid winner', () => {
     for (const player of players) {
       expect(player.knockoutPicks).toHaveLength(32)
       for (const kPick of player.knockoutPicks) {
         const result = knockoutResults.find((r) => r.matchId === kPick.matchId)!
         expect([result.homeTeamId, result.awayTeamId]).toContain(kPick.pickedTeam)
+        expect(kPick.homeScore).toBeGreaterThanOrEqual(0)
+        expect(kPick.homeScore).toBeLessThanOrEqual(4)
+        expect(kPick.awayScore).toBeGreaterThanOrEqual(0)
+        expect(kPick.awayScore).toBeLessThanOrEqual(4)
       }
     }
   })
@@ -429,9 +455,11 @@ describe('Full tournament simulation', () => {
         awayScore: r.awayScore,
       }))
 
-      // Build perfect knockout picks — always pick the winner
+      // Build perfect knockout picks — exact score + correct winner
       const perfectKnockoutPicks: KnockoutPick[] = knockoutResults.map((r) => ({
         matchId: r.matchId,
+        homeScore: r.homeScore,
+        awayScore: r.awayScore,
         pickedTeam: r.winnerId,
       }))
 
@@ -451,8 +479,8 @@ describe('Full tournament simulation', () => {
 
       // Group: 72 * 5 = 360
       expect(naive.groupTotal).toBe(360)
-      // R32: 16 * 3 = 48, R16: 8 * 4 = 32, QF: 4 * 5 = 20, SF: 2 * 6 = 12, 3rd: 6, Final: 8
-      expect(naive.knockoutTotal).toBe(48 + 32 + 20 + 12 + 6 + 8)
+      // R32: 16*(3+2)=80, R16: 8*(4+2)=48, QF: 4*(5+2)=28, SF: 2*(6+2)=16, 3rd: 6+2=8, Final: 8+2=10
+      expect(naive.knockoutTotal).toBe(80 + 48 + 28 + 16 + 8 + 10)
       expect(naive.championBonusAwarded).toBe(10)
       expect(naive.total).toBe(THEORETICAL_MAX)
 
@@ -461,18 +489,18 @@ describe('Full tournament simulation', () => {
       expect(production.total).toBe(naive.total)
     })
 
-    it('theoretical max equals 496', () => {
+    it('theoretical max equals 560', () => {
       const groupMax = 72 * 5
-      const r32Max = 16 * 3
-      const r16Max = 8 * 4
-      const qfMax = 4 * 5
-      const sfMax = 2 * 6
-      const thirdPlaceMax = 1 * 6
-      const finalMax = 1 * 8
+      const r32Max = 16 * (3 + KNOCKOUT_EXACT_BONUS)
+      const r16Max = 8 * (4 + KNOCKOUT_EXACT_BONUS)
+      const qfMax = 4 * (5 + KNOCKOUT_EXACT_BONUS)
+      const sfMax = 2 * (6 + KNOCKOUT_EXACT_BONUS)
+      const thirdPlaceMax = 1 * (6 + KNOCKOUT_EXACT_BONUS)
+      const finalMax = 1 * (8 + KNOCKOUT_EXACT_BONUS)
       const championMax = 10
 
       const computed = groupMax + r32Max + r16Max + qfMax + sfMax + thirdPlaceMax + finalMax + championMax
-      expect(computed).toBe(496)
+      expect(computed).toBe(560)
       expect(computed).toBe(THEORETICAL_MAX)
     })
   })

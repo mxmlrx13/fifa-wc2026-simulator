@@ -87,19 +87,23 @@ describe('quickFillGroupMatches', () => {
 })
 
 describe('quickFillKnockoutPicks', () => {
-  it('should pick higher-ranked team', () => {
+  it('should generate score-based prediction with higher-ranked team winning', () => {
     const fixtures = [
       { matchId: 73, homeTeamId: 'BRA', awayTeamId: 'CUW' }, // BRA ranked 5, CUW ranked 93
     ]
     const picks = quickFillKnockoutPicks(fixtures, {})
-    expect(picks[73]).toBe('BRA')
+    expect(picks[73]).toBeDefined()
+    expect(picks[73].winnerId).toBe('BRA')
+    expect(picks[73].homeScore).not.toBeNull()
+    expect(picks[73].awayScore).not.toBeNull()
+    expect(picks[73].homeScore).not.toBe(picks[73].awayScore) // never tied
   })
 
   it('should not overwrite existing picks', () => {
     const fixtures = [
       { matchId: 73, homeTeamId: 'BRA', awayTeamId: 'CUW' },
     ]
-    const existing = { 73: 'CUW' }
+    const existing = { 73: { homeScore: 0, awayScore: 1, winnerId: 'CUW' } }
     const picks = quickFillKnockoutPicks(fixtures, existing)
     expect(picks[73]).toBeUndefined()
   })
@@ -118,7 +122,20 @@ describe('quickFillKnockoutPicks', () => {
       { matchId: 73, homeTeamId: 'CUW', awayTeamId: 'ESP' }, // CUW ranked 93, ESP ranked 1
     ]
     const picks = quickFillKnockoutPicks(fixtures, {})
-    expect(picks[73]).toBe('ESP')
+    expect(picks[73]).toBeDefined()
+    expect(picks[73].winnerId).toBe('ESP')
+  })
+
+  it('should never generate tied scores', () => {
+    const fixtures = Array.from({ length: 16 }, (_, i) => ({
+      matchId: 73 + i,
+      homeTeamId: 'BRA',
+      awayTeamId: 'FRA',
+    }))
+    const picks = quickFillKnockoutPicks(fixtures, {})
+    for (const pick of Object.values(picks)) {
+      expect(pick.homeScore).not.toBe(pick.awayScore)
+    }
   })
 })
 
@@ -153,7 +170,7 @@ describe('quick-fill purity and immutability', () => {
       { matchId: 73, homeTeamId: 'BRA', awayTeamId: 'CUW' },
       { matchId: 74, homeTeamId: 'FRA', awayTeamId: 'NOR' },
     ]
-    const existing: Record<number, string> = { 73: 'CUW' }
+    const existing = { 73: { homeScore: 0, awayScore: 1, winnerId: 'CUW' } }
     const existingSnapshot = JSON.stringify(existing)
     quickFillKnockoutPicks(fixtures, existing)
     expect(JSON.stringify(existing)).toBe(existingSnapshot)

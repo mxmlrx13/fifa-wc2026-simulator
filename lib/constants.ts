@@ -98,6 +98,9 @@ export function getKnockoutPointsForMatch(matchId: number): number {
   return 3 // fallback
 }
 
+/** Bonus points for exact scoreline in a knockout match (on top of base points). */
+export const KNOCKOUT_EXACT_BONUS = 2
+
 /** Bonus points for correctly predicting the tournament champion. */
 export const CHAMPION_BONUS = 10
 

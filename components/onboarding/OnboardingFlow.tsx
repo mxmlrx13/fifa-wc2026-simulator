@@ -156,18 +156,20 @@ function PointsViz() {
 function KnockoutViz() {
   return (
     <div className="rounded-[var(--radius-card)] border border-line bg-card p-3.5">
-      <div className="flex gap-[7px]">
-        <div className="flex flex-1 items-center gap-[7px] rounded-[11px] border-[1.5px] border-red bg-red-soft p-[11px] text-[13px] font-bold">
-          🇦🇹 Austria
-          <span className="ml-auto font-black text-red">✓</span>
-        </div>
-        <div className="flex flex-1 items-center gap-[7px] rounded-[11px] border-[1.5px] border-line bg-input p-[11px] text-[13px] font-bold">
-          🇺🇸 USA
-        </div>
+      <div className="flex items-center justify-between gap-1.5 text-[13px] font-semibold">
+        <span>🇦🇹 AUT</span>
+        <span className="flex gap-1.5">
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-[var(--radius-input)] border-[1.5px] border-line bg-input text-[15px] font-extrabold text-ink">1</span>
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-[var(--radius-input)] border-[1.5px] border-line bg-input text-[15px] font-extrabold text-ink">1</span>
+        </span>
+        <span>USA 🇺🇸</span>
       </div>
-      <div className="mt-2 text-center">
+      <div className="mt-1.5 flex items-center justify-center gap-1.5 text-[10px] font-bold text-muted">
+        <span>draw? pick the shootout winner</span>
+      </div>
+      <div className="mt-2 flex flex-wrap justify-center gap-1.5">
         <span className="inline-flex items-center rounded-full bg-badge-bg px-2.5 py-1 text-[10.5px] font-bold text-ink">
-          Round of 32 · 3 pts per pick
+          Round of 32 · 3 pts · exact +2
         </span>
       </div>
     </div>
@@ -231,9 +233,9 @@ const STEP_CONTENT: Array<{
   },
   {
     num: 'Step 3 · Knockouts',
-    title: 'Pick winners, round by round.',
+    title: 'Knockouts: now you call the score.',
     body: (
-      <p>No crystal ball needed: when the real bracket is known, you pick who advances — <b>fresh picks before every round</b>. And they&apos;re worth more each time: 3 → 4 → 5 → 6 → 8 pts.</p>
+      <p>Predict the scoreline for every knockout match. <b>Correct advancing team</b> earns the round&apos;s base points (3 → 4 → 5 → 6 → 8), and an <b>exact score = +2 bonus</b>. Draw? Pick the shootout winner.</p>
     ),
     viz: <KnockoutViz />,
   },

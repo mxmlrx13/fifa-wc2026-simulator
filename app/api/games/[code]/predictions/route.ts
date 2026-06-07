@@ -126,8 +126,13 @@ export async function POST(
         }
       }
 
-      if (p.matchId <= GROUP_MATCH_MAX_ID) return p.homeScore != null && p.awayScore != null
-      return p.winnerId != null
+      // Both group and knockout require home_score + away_score
+      if (p.homeScore == null || p.awayScore == null) return false
+      // Knockout: winnerId always required (client derives from score or shootout pick)
+      if (p.matchId > GROUP_MATCH_MAX_ID) {
+        if (!p.winnerId) return false
+      }
+      return true
     })
     .map((p) => ({
       player_id: player.id,
