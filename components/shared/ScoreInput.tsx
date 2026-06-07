@@ -13,7 +13,7 @@ export default function ScoreInput({ value, onChange }: ScoreInputProps) {
       min={0}
       max={99}
       value={value ?? ''}
-      placeholder="\u2013"
+      placeholder="–"
       onChange={(e) => {
         const raw = e.target.value
         if (raw === '') {
