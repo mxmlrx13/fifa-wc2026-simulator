@@ -97,6 +97,7 @@ app/
       results/page.tsx                Host-only. Batch selector + score entry for real results.
       compare/page.tsx                Side-by-side prediction comparison (locked games only).
       leaderboard/page.tsx            Full leaderboard page.
+      recover/page.tsx                Recovery page: token validation + session rebind.
 
   api/games/
     route.ts                          POST: create game. Generates 6-char code.
@@ -105,8 +106,10 @@ app/
       join/route.ts                   POST: add player to game.
       predictions/route.ts            GET: fetch predictions (round-based visibility). POST: save predictions (round-based validation).
       results/route.ts                POST: enter results + compute scores + auto round transitions + champion bonus.
-      round/route.ts                  PATCH: lock_round / unlock_round per prediction round.
+      round/route.ts                  PATCH: lock_round / unlock_round / transfer_host per prediction round.
       bracket/route.ts                GET: compute actual bracket from official results.
+      recover/route.ts                POST: rebind player auth_id via recovery token.
+      players/[playerId]/route.ts     DELETE: remove player (host) or leave (self).
       leaderboard/route.ts            GET: aggregated, ranked leaderboard (includes champion bonus).
 
 components/
@@ -135,6 +138,8 @@ components/
     LeaderboardTable.tsx              Ranked table. Compact (top 5) or full mode. Realtime.
     PredictionComparison.tsx          Match × player table. Scores for groups, winner for knockout.
     PredictionProvider.tsx            Local TournamentContext wrapper for multiplayer predictions.
+    RecoveryLinkModal.tsx             Post-create/join modal with copy-able recovery URL.
+    RecoveryLinkDisplay.tsx           Collapsible recovery link on dashboard.
 
   shared/
     TeamBadge.tsx                     Flag emoji + team code/name. Sizes: sm/md/lg.
@@ -169,6 +174,7 @@ lib/
     server.ts                         Server-side Supabase client + service role client.
     auth.ts                           ensureAnonymousSession() — creates anon session if none.
     use-game.ts                       React hook: fetch game data, subscribe to realtime changes.
+    game-fetch.ts                     Fetch wrapper with 401 retry (ensureAnonymousSession).
     hydrate-predictions.ts            Convert DB prediction rows → TournamentState for PredictionProvider.
 
 supabase-schema.sql                   Full schema: tables, constraints, RLS policies, migration notes.
@@ -394,9 +400,29 @@ Anonymous Supabase sessions. No email, no password, no OAuth.
 
 `lib/supabase/auth.ts` calls `supabase.auth.getUser()`. If no session exists, calls `supabase.auth.signInAnonymously()`. The returned `user.id` (a UUID) is stored as `auth_id` in the `players` table.
 
-Sessions are browser-specific. There is no way to log in from another device or browser and recover the same player identity.
+Sessions are browser-specific. Players can recover access from a different device/browser using their recovery link (see below).
 
-Session lifetime is controlled by Supabase project settings (default: indefinite for anonymous sessions, but refresh tokens can expire if the browser is closed for extended periods). The app does not handle session expiry — if a session expires, API calls will return 401 and the UI will show generic errors.
+### 401 Resilience
+
+`lib/supabase/game-fetch.ts` provides a `gameFetch()` wrapper used by the `useGame` hook. On a 401 response, it calls `ensureAnonymousSession()` once and retries the request. This handles the common case where a session expired silently. The `useGame` hook uses this wrapper for its API calls.
+
+### Recovery Links
+
+Each player row has a `recovery_token` (UUID, unique, auto-generated). After creating or joining a game, a modal shows the recovery URL:
+
+```
+/play/[code]/recover?token=<recovery_token>
+```
+
+The player saves this link. The dashboard also shows a collapsible "Your Recovery Link" section.
+
+**Recovery flow** (POST `/api/games/[code]/recover`):
+1. Caller provides `{ token }` in request body
+2. Server validates the token belongs to a player in this game
+3. Updates that player's `auth_id` to the caller's current anonymous session ID
+4. The old session (if it still exists somewhere) simply no longer maps to any player
+
+This allows recovering on a new device, new browser, or after clearing cookies.
 
 ### Creating a Game
 
@@ -406,7 +432,8 @@ POST `/api/games` with `{ name, displayName }`.
 2. Generates a 6-character random uppercase alphanumeric code (retries up to 5 times if collision)
 3. Inserts a row in `games`
 4. Inserts a row in `players` with `is_host: true` and the caller's `auth_id`
-5. Returns `{ code, gameId }`
+5. Seeds 6 `game_rounds` rows
+6. Returns `{ code, gameId, recoveryToken }`
 
 ### Joining a Game
 
@@ -417,22 +444,35 @@ POST `/api/games/[code]/join` with `{ displayName }`.
 3. Checks if the player is already in the game (same `auth_id` + `game_id`)
 4. Inserts a row in `players` with `is_host: false`
 5. Display name must be unique within the game (enforced by DB unique constraint on `game_id, display_name`)
+6. Returns `{ playerId, recoveryToken }`
 
-### Host Permissions
+### Host Permissions and Transfer
 
-The `is_host` flag on the `players` table determines host status. Exactly one player per game is the host (the creator).
+The `is_host` flag on the `players` table determines host status. Exactly one player per game is the host, enforced by a partial unique index: `CREATE UNIQUE INDEX one_host_per_game ON players (game_id) WHERE is_host`.
 
 Host-only actions (enforced in API routes by querying `is_host`):
 - Lock/unlock prediction rounds (PATCH `/api/games/[code]/round` with `action: 'lock_round'` or `'unlock_round'`)
 - Enter official results (POST `/api/games/[code]/results`)
+- Transfer host status (PATCH `/api/games/[code]/round` with `action: 'transfer_host'`, `playerId`)
+- Remove other players (DELETE `/api/games/[code]/players/[playerId]`)
 
-The host is determined by checking `players.is_host = true AND players.auth_id = currentUser.id AND players.game_id = game.id`.
+**Host transfer:** The current host sends `{ action: 'transfer_host', playerId: '<target>' }`. The API sets `is_host = false` on the current host and `is_host = true` on the target, with rollback if the second update fails. The `one_host_per_game` index ensures the invariant holds even under concurrent calls. The dashboard shows a star icon per player row (host only) to trigger transfer with a confirmation dialog.
 
-There is no way to transfer host status. There is no way to have multiple hosts. If the host loses their browser session, no one can lock predictions or enter results.
+### Player Removal
+
+DELETE `/api/games/[code]/players/[playerId]` — allowed when:
+- Caller is the host removing someone else (not self)
+- Caller is the player themselves (leaving the game)
+
+The host cannot remove/leave themselves — they must transfer host first (returns 400 with a message). Cascading FKs clean up predictions and scores automatically. The dashboard shows a remove icon per player (host), and a "Leave" button for non-host self.
 
 ### Group Size
 
 No enforced limit. The `players` table has no cap on rows per `game_id`. The UI and API will work with any number of players, though the leaderboard and comparison table will become unwieldy beyond ~20 players.
+
+### Realtime Player Updates
+
+The `players` table is in the Supabase realtime publication. The `useGame` hook subscribes to INSERT/UPDATE/DELETE events on `players` (filtered by `game_id`), so the player list updates live when someone joins, leaves, or host transfers.
 
 ---
 
@@ -500,7 +540,7 @@ Results can be re-submitted. The upsert on `official_results` and `scores` overw
 
 ### Bugs
 
-**Session expiry is unhandled.** If a Supabase anonymous session expires (refresh token invalid), all API calls return 401. The UI shows a descriptive error message (e.g., "Failed to load game: <reason>") but there is no re-authentication flow. The player must clear browser data and rejoin, losing their player identity.
+**Session expiry is partially handled.** The `gameFetch()` wrapper retries on 401 after calling `ensureAnonymousSession()`. This recovers from expired sessions for data fetches. However, if the new session doesn't map to any player (e.g., the browser was wiped), the user needs their recovery link to rebind their player identity.
 
 ### Fragile Code
 
@@ -542,8 +582,6 @@ Results can be re-submitted. The upsert on `official_results` and `scores` overw
 - **No match schedule or deadlines.** No dates, times, or automatic locking based on kick-off.
 - **No notifications.** Players aren't notified when predictions are locked, results are entered, or the leaderboard changes.
 - **No game deletion.** Games persist indefinitely. No cleanup mechanism.
-- **No player removal.** Once joined, a player can't be removed by the host or leave voluntarily.
-- **No host transfer.** If the host loses access, the game is stuck (can't lock or enter results).
 - **No password/private games.** Any player with the code can join. No approval flow.
 - **No prediction summary/receipt.** After saving, there's no page showing "here's what you predicted."
 - **No score breakdown view.** The leaderboard shows total points but there's no per-match breakdown showing which predictions scored how many points.

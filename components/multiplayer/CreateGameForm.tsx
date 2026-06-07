@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ensureAnonymousSession } from '@/lib/supabase/auth'
+import RecoveryLinkModal from './RecoveryLinkModal'
 
 export default function CreateGameForm() {
   const router = useRouter()
@@ -10,6 +11,7 @@ export default function CreateGameForm() {
   const [displayName, setDisplayName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [recovery, setRecovery] = useState<{ code: string; token: string } | null>(null)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -31,13 +33,28 @@ export default function CreateGameForm() {
         return
       }
 
-      router.push(`/play/${data.code}`)
+      // Show recovery modal before navigating
+      if (data.recoveryToken) {
+        setRecovery({ code: data.code, token: data.recoveryToken })
+      } else {
+        router.push(`/play/${data.code}`)
+      }
     } catch (err) {
       console.error('CreateGameForm error:', err)
       setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
       setLoading(false)
     }
+  }
+
+  if (recovery) {
+    return (
+      <RecoveryLinkModal
+        code={recovery.code}
+        recoveryToken={recovery.token}
+        onClose={() => router.push(`/play/${recovery.code}`)}
+      />
+    )
   }
 
   return (

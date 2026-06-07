@@ -51,7 +51,7 @@ export async function POST(request: Request) {
   }
 
   // Create host player
-  const { error: playerError } = await supabase
+  const { data: hostPlayer, error: playerError } = await supabase
     .from('players')
     .insert({
       auth_id: user.id,
@@ -59,8 +59,10 @@ export async function POST(request: Request) {
       display_name: displayName,
       is_host: true,
     })
+    .select('recovery_token')
+    .single()
 
-  if (playerError) {
+  if (playerError || !hostPlayer) {
     return Response.json({ error: 'Failed to create host player' }, { status: 500 })
   }
 
@@ -78,5 +80,5 @@ export async function POST(request: Request) {
     return Response.json({ error: 'Failed to create game rounds' }, { status: 500 })
   }
 
-  return Response.json({ code: game.code, gameId: game.id })
+  return Response.json({ code: game.code, gameId: game.id, recoveryToken: hostPlayer.recovery_token })
 }

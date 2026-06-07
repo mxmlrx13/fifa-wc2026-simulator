@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ensureAnonymousSession } from '@/lib/supabase/auth'
+import RecoveryLinkModal from './RecoveryLinkModal'
 
 interface JoinGameFormProps {
   initialCode?: string
@@ -14,6 +15,7 @@ export default function JoinGameForm({ initialCode }: JoinGameFormProps) {
   const [displayName, setDisplayName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [recovery, setRecovery] = useState<{ code: string; token: string } | null>(null)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -23,7 +25,8 @@ export default function JoinGameForm({ initialCode }: JoinGameFormProps) {
     try {
       await ensureAnonymousSession()
 
-      const res = await fetch(`/api/games/${code.toUpperCase()}/join`, {
+      const upperCode = code.toUpperCase()
+      const res = await fetch(`/api/games/${upperCode}/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ displayName }),
@@ -35,12 +38,32 @@ export default function JoinGameForm({ initialCode }: JoinGameFormProps) {
         return
       }
 
-      router.push(`/play/${code.toUpperCase()}`)
+      if (data.alreadyJoined) {
+        router.push(`/play/${upperCode}`)
+        return
+      }
+
+      // Show recovery modal before navigating
+      if (data.recoveryToken) {
+        setRecovery({ code: upperCode, token: data.recoveryToken })
+      } else {
+        router.push(`/play/${upperCode}`)
+      }
     } catch {
       setError('Something went wrong')
     } finally {
       setLoading(false)
     }
+  }
+
+  if (recovery) {
+    return (
+      <RecoveryLinkModal
+        code={recovery.code}
+        recoveryToken={recovery.token}
+        onClose={() => router.push(`/play/${recovery.code}`)}
+      />
+    )
   }
 
   return (

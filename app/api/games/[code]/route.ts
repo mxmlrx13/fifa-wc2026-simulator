@@ -20,7 +20,7 @@ export async function GET(
   const [{ data: players }, { data: gameRounds }] = await Promise.all([
     supabase
       .from('players')
-      .select('id, display_name, is_host, auth_id, champion_pick')
+      .select('id, display_name, is_host, auth_id, champion_pick, recovery_token')
       .eq('game_id', game.id)
       .order('created_at'),
     supabase
@@ -53,6 +53,7 @@ export async function GET(
       displayName: currentPlayer.display_name,
       isHost: currentPlayer.is_host,
       championPick: currentPlayer.champion_pick,
+      recoveryToken: currentPlayer.recovery_token,
     } : null,
     rounds,
   })

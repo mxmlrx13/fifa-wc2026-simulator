@@ -47,7 +47,7 @@ export async function POST(
       display_name: displayName,
       is_host: false,
     })
-    .select('id')
+    .select('id, recovery_token')
     .single()
 
   if (error) {
@@ -61,5 +61,5 @@ export async function POST(
     return Response.json({ error: 'Player was created but could not be retrieved' }, { status: 500 })
   }
 
-  return Response.json({ playerId: player.id })
+  return Response.json({ playerId: player.id, recoveryToken: player.recovery_token })
 }

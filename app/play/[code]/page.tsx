@@ -1,12 +1,13 @@
 'use client'
 
-import { use } from 'react'
+import { use, useState } from 'react'
 import Link from 'next/link'
 import { useGame } from '@/lib/supabase/use-game'
 import GameCodeDisplay from '@/components/multiplayer/GameCodeDisplay'
 import PlayerList from '@/components/multiplayer/PlayerList'
 import RoundControls from '@/components/multiplayer/RoundControls'
 import LeaderboardTable from '@/components/multiplayer/LeaderboardTable'
+import RecoveryLinkDisplay from '@/components/multiplayer/RecoveryLinkDisplay'
 
 export default function GameDashboard({ params }: { params: Promise<{ code: string }> }) {
   const { code } = use(params)
@@ -59,7 +60,16 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
             isHost={isHost}
             onAction={refetch}
           />
-          <PlayerList players={players} currentPlayerId={currentPlayer?.id} />
+          <PlayerList
+            code={code}
+            players={players}
+            currentPlayerId={currentPlayer?.id}
+            isHost={isHost}
+            onAction={refetch}
+          />
+          {currentPlayer?.recoveryToken && (
+            <RecoveryLinkDisplay code={code} recoveryToken={currentPlayer.recoveryToken} />
+          )}
         </div>
 
         {/* Center + Right columns */}

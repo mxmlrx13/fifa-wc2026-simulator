@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from './client'
+import { gameFetch } from './game-fetch'
 import type { PredictionRoundKey } from '@/lib/constants'
 
 interface Player {
@@ -16,6 +17,10 @@ export interface GameRound {
   status: 'pending' | 'open' | 'locked' | 'scored'
 }
 
+interface CurrentPlayer extends Player {
+  recoveryToken: string
+}
+
 interface Game {
   id: string
   code: string
@@ -25,7 +30,7 @@ interface Game {
 interface GameState {
   game: Game | null
   players: Player[]
-  currentPlayer: Player | null
+  currentPlayer: CurrentPlayer | null
   rounds: GameRound[]
   loading: boolean
   error: string | null
@@ -43,7 +48,7 @@ export function useGame(code: string) {
 
   const fetchGame = useCallback(async () => {
     try {
-      const res = await fetch(`/api/games/${code}`)
+      const res = await gameFetch(`/api/games/${code}`)
       if (!res.ok) {
         setState((s) => ({ ...s, loading: false, error: 'Game not found' }))
         return
@@ -71,13 +76,13 @@ export function useGame(code: string) {
     fetchGame()
   }, [fetchGame])
 
-  // Subscribe to game_rounds changes
+  // Subscribe to game_rounds and players changes
   useEffect(() => {
     if (!state.game?.id) return
 
     const supabase = createClient()
     const channel = supabase
-      .channel(`game-rounds-${state.game.id}`)
+      .channel(`game-${state.game.id}`)
       .on(
         'postgres_changes',
         {
@@ -86,10 +91,17 @@ export function useGame(code: string) {
           table: 'game_rounds',
           filter: `game_id=eq.${state.game.id}`,
         },
-        () => {
-          // Re-fetch full state when rounds change
-          fetchGame()
+        () => { fetchGame() },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'players',
+          filter: `game_id=eq.${state.game.id}`,
         },
+        () => { fetchGame() },
       )
       .subscribe()
 

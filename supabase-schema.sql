@@ -26,9 +26,13 @@ CREATE TABLE players (
   display_name TEXT NOT NULL,
   is_host BOOLEAN DEFAULT FALSE,
   champion_pick TEXT NULL,
+  recovery_token UUID NOT NULL DEFAULT gen_random_uuid() UNIQUE,
   created_at TIMESTAMPTZ DEFAULT now(),
   UNIQUE(game_id, display_name)
 );
+
+-- Enforce exactly one host per game at DB level
+CREATE UNIQUE INDEX one_host_per_game ON players (game_id) WHERE is_host;
 
 CREATE TABLE predictions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -73,6 +77,7 @@ CREATE TABLE scores (
 ALTER PUBLICATION supabase_realtime ADD TABLE games;
 ALTER PUBLICATION supabase_realtime ADD TABLE scores;
 ALTER PUBLICATION supabase_realtime ADD TABLE game_rounds;
+ALTER PUBLICATION supabase_realtime ADD TABLE players;
 
 -- Row Level Security
 ALTER TABLE games ENABLE ROW LEVEL SECURITY;
@@ -93,6 +98,7 @@ CREATE POLICY "Anyone can update game_rounds" ON game_rounds FOR UPDATE USING (t
 CREATE POLICY "Anyone can read players" ON players FOR SELECT USING (true);
 CREATE POLICY "Anyone can insert players" ON players FOR INSERT WITH CHECK (true);
 CREATE POLICY "Anyone can update players" ON players FOR UPDATE USING (true);
+CREATE POLICY "Anyone can delete players" ON players FOR DELETE USING (true);
 
 CREATE POLICY "Anyone can read predictions" ON predictions FOR SELECT USING (true);
 CREATE POLICY "Anyone can insert predictions" ON predictions FOR INSERT WITH CHECK (true);
