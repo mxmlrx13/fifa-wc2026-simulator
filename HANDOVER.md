@@ -844,3 +844,17 @@ npm run backup       # scripts/backup.mjs
 ```
 
 Dumps all 7 tables to `backups/<ISO-timestamp>/` as JSON files. Restore order (FK-safe): games, players, game_rounds, predictions, official_results, scores, leaderboard_snapshots. The `backups/` directory is gitignored.
+
+### Pre-Release Audit Scripts
+
+- `scripts/check-schema.mjs` — queries information_schema to verify table/column existence
+- `scripts/api-lifecycle-test.mjs` — 24-assertion DB-level integration test covering the full game lifecycle (create, join, predict, lock, score, knockout, champion bonus, movement, concurrency, recovery, cascade delete)
+
+### Migrations Applied
+
+| Migration | Description |
+|-----------|-------------|
+| MIGRATION-002 | Added game_rounds, leaderboard_snapshots tables |
+| MIGRATION-003 | Added champion_pick to players, predicted/actual_winner_id to scores |
+| MIGRATION-004 | Added recovery_token to players |
+| MIGRATION-005 | Added winner_id to predictions and official_results |

@@ -247,6 +247,26 @@ Compare each screen against `design-refs/screens.html`:
 
 ---
 
+## 18. Pre-Release Audit (automated)
+
+- [x] 18.1 All 225 unit/integration tests pass (17 files)
+- [x] 18.2 Production build clean (no warnings)
+- [x] 18.3 No secret leakage in .next/static/ or git history
+- [x] 18.4 API lifecycle test: 24/24 assertions (create->join->predict->lock->score->knockout->champion->cleanup)
+- [x] 18.5 Auth matrix: all mutations auth-gated, GET routes scoped by game code
+- [x] 18.6 Realtime subscriptions: all cleaned up in useEffect returns
+- [x] 18.7 No stray console.log/debug in production code
+- [x] 18.8 No glass-card/glow-* design remnants
+- [x] 18.9 No bare hex colors outside opengraph-image.tsx
+- [x] 18.10 Bundle: largest chunk 410K (acceptable)
+- [x] 18.11 MIGRATION-005 applied (winner_id columns)
+- [x] 18.12 NEXT_PUBLIC_ENABLE_DEADLINES=true set
+- [ ] 18.13 Netlify env vars set (NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, NEXT_PUBLIC_ENABLE_DEADLINES)
+- [ ] 18.14 Production deploy successful
+- [ ] 18.15 Live smoke test: create game, join, predict, lock, enter results
+
+---
+
 ## Sign-off
 
 | Tester | Date | All checks pass? | Notes |
