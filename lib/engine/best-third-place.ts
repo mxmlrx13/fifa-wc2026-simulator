@@ -1,4 +1,5 @@
 import type { GroupId, GroupStanding, ThirdPlaceResult, Team } from '../types'
+import { QUALIFIED_THIRD_PLACE_COUNT } from '../constants'
 
 /**
  * Rank all 12 third-place teams across groups.
@@ -51,7 +52,7 @@ export function rankThirdPlaceTeams(
 
   // Top 8 qualify
   for (let i = 0; i < thirdPlaceTeams.length; i++) {
-    thirdPlaceTeams[i].qualified = i < 8
+    thirdPlaceTeams[i].qualified = i < QUALIFIED_THIRD_PLACE_COUNT
   }
 
   return thirdPlaceTeams

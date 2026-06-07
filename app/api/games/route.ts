@@ -1,9 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
+import { GAME_CODE_LENGTH, CODE_GENERATION_RETRIES } from '@/lib/constants'
 
 function generateCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
   let code = ''
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < GAME_CODE_LENGTH; i++) {
     code += chars[Math.floor(Math.random() * chars.length)]
   }
   return code
@@ -27,7 +28,7 @@ export async function POST(request: Request) {
   // Generate unique code with retries
   let code = generateCode()
   let attempts = 0
-  while (attempts < 5) {
+  while (attempts < CODE_GENERATION_RETRIES) {
     const { data: existing } = await supabase
       .from('games')
       .select('id')

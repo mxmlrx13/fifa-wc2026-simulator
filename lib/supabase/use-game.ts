@@ -50,8 +50,13 @@ export function useGame(code: string) {
         loading: false,
         error: null,
       })
-    } catch {
-      setState((s) => ({ ...s, loading: false, error: 'Failed to load game' }))
+    } catch (err) {
+      console.error('Failed to fetch game:', err)
+      setState((s) => ({
+        ...s,
+        loading: false,
+        error: err instanceof Error ? `Failed to load game: ${err.message}` : 'Failed to load game',
+      }))
     }
   }, [code])
 

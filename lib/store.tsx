@@ -211,8 +211,8 @@ function TournamentProvider({ children }: TournamentProviderProps) {
           dispatch({ type: 'HYDRATE', state: parsed })
         }
       }
-    } catch {
-      // Ignore parse errors, use initial state
+    } catch (err) {
+      console.error('Failed to hydrate tournament state from localStorage:', err)
     }
     setMounted(true)
   }, [])
@@ -222,8 +222,8 @@ function TournamentProvider({ children }: TournamentProviderProps) {
     if (!mounted) return
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-    } catch {
-      // Ignore storage errors (quota exceeded, etc.)
+    } catch (err) {
+      console.error('Failed to persist tournament state to localStorage:', err)
     }
   }, [state, mounted])
 

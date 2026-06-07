@@ -1,12 +1,13 @@
 'use client'
 
-import { use, useState, useEffect, useCallback } from 'react'
+import { use, useState, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import { useGame } from '@/lib/supabase/use-game'
 import { getMatchIdsForRound, getRoundLabel, getAllRounds, type RoundKey } from '@/lib/engine/rounds'
 import { groupFixtures } from '@/lib/data/fixtures'
 import { bracketTemplate } from '@/lib/data/bracket-template'
 import { teamsMap } from '@/lib/data/teams'
+import { THIRD_PLACE_MATCH_ID, FINAL_MATCH_ID } from '@/lib/constants'
 import ScoreInput from '@/components/shared/ScoreInput'
 import { cn } from '@/lib/utils'
 
@@ -49,6 +50,12 @@ function getMatchInfo(matchId: number) {
   return null
 }
 
+function getMatchDisplayLabel(matchId: number): string | null {
+  if (matchId === THIRD_PLACE_MATCH_ID) return 'Third-place match'
+  if (matchId === FINAL_MATCH_ID) return 'Final'
+  return null
+}
+
 function slotLabel(slot: string): string {
   if (slot.startsWith('W')) return `Winner M${slot.slice(1)}`
   if (slot.startsWith('L')) return `Loser M${slot.slice(1)}`
@@ -62,6 +69,7 @@ export default function ResultsPage({ params }: { params: Promise<{ code: string
   const [results, setResults] = useState<Map<number, MatchResult>>(new Map())
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   const matchIds = getMatchIdsForRound(selectedBatch)
   const isKnockoutBatch = !selectedBatch.startsWith('group_md')
@@ -70,7 +78,20 @@ export default function ResultsPage({ params }: { params: Promise<{ code: string
   useEffect(() => {
     setResults(new Map())
     setSaved(false)
+    setSubmitError(null)
   }, [selectedBatch])
+
+  // Compute tied knockout matches missing a winner
+  const tiedWithoutWinner = useMemo(() => {
+    if (!isKnockoutBatch) return []
+    return Array.from(results.values()).filter(
+      (r) =>
+        r.homeScore !== null &&
+        r.awayScore !== null &&
+        r.homeScore === r.awayScore &&
+        !r.winnerId,
+    )
+  }, [results, isKnockoutBatch])
 
   const updateResult = useCallback(
     (matchId: number, side: 'home' | 'away', value: number | null) => {
@@ -79,10 +100,15 @@ export default function ResultsPage({ params }: { params: Promise<{ code: string
         const existing = next.get(matchId) ?? { matchId, homeScore: null, awayScore: null }
         if (side === 'home') existing.homeScore = value
         else existing.awayScore = value
+        // Clear winnerId if scores change and are no longer tied
+        if (existing.homeScore !== null && existing.awayScore !== null && existing.homeScore !== existing.awayScore) {
+          existing.winnerId = undefined
+        }
         next.set(matchId, { ...existing })
         return next
       })
       setSaved(false)
+      setSubmitError(null)
     },
     [],
   )
@@ -97,12 +123,14 @@ export default function ResultsPage({ params }: { params: Promise<{ code: string
         return next
       })
       setSaved(false)
+      setSubmitError(null)
     },
     [],
   )
 
   async function handleSubmit() {
     setSaving(true)
+    setSubmitError(null)
 
     const payload = Array.from(results.values())
       .filter((r) => r.homeScore !== null && r.awayScore !== null)
@@ -122,6 +150,9 @@ export default function ResultsPage({ params }: { params: Promise<{ code: string
     setSaving(false)
     if (res.ok) {
       setSaved(true)
+    } else {
+      const data = await res.json().catch(() => ({ error: 'Unknown error' }))
+      setSubmitError(data.error ?? 'Failed to save results')
     }
   }
 
@@ -141,6 +172,8 @@ export default function ResultsPage({ params }: { params: Promise<{ code: string
   const completeResults = Array.from(results.values()).filter(
     (r) => r.homeScore !== null && r.awayScore !== null,
   ).length
+
+  const canSubmit = completeResults > 0 && tiedWithoutWinner.length === 0
 
   const allRounds = getAllRounds()
 
@@ -189,10 +222,20 @@ export default function ResultsPage({ params }: { params: Promise<{ code: string
           const awayTeam = info.awayTeamId ? teamsMap[info.awayTeamId] : null
           const isTied = result?.homeScore !== null && result?.awayScore !== null &&
                          result?.homeScore === result?.awayScore && isKnockoutBatch
+          const isMissingWinner = isTied && !result?.winnerId
+          const distinctLabel = getMatchDisplayLabel(matchId)
 
           return (
             <div key={matchId}>
-              <div className="glass-card flex items-center gap-2 px-4 py-3">
+              {distinctLabel && (
+                <p className="mt-4 mb-1 text-xs font-bold uppercase tracking-wider text-accent">
+                  {distinctLabel}
+                </p>
+              )}
+              <div className={cn(
+                'glass-card flex items-center gap-2 px-4 py-3',
+                isMissingWinner && 'ring-2 ring-neon-red/50',
+              )}>
                 <span className="w-16 shrink-0 text-[10px] font-bold uppercase tracking-wider text-gray-400">
                   M{matchId}
                 </span>
@@ -238,8 +281,11 @@ export default function ResultsPage({ params }: { params: Promise<{ code: string
 
               {/* Winner picker for tied knockout matches */}
               {isTied && homeTeam && awayTeam && (
-                <div className="ml-16 mt-1 flex items-center gap-2 text-xs text-amber-700">
-                  <span>Winner (penalties):</span>
+                <div className={cn(
+                  'ml-16 mt-1 flex items-center gap-2 text-xs',
+                  isMissingWinner ? 'text-neon-red font-semibold' : 'text-amber-700',
+                )}>
+                  <span>{isMissingWinner ? 'Select a winner (penalties):' : 'Winner (penalties):'}</span>
                   <button
                     onClick={() => setWinner(matchId, homeTeam.id)}
                     className={cn(
@@ -265,10 +311,14 @@ export default function ResultsPage({ params }: { params: Promise<{ code: string
         })}
       </div>
 
+      {submitError && (
+        <p className="mt-4 text-xs font-semibold text-neon-red">{submitError}</p>
+      )}
+
       <div className="sticky bottom-4 mt-6">
         <button
           onClick={handleSubmit}
-          disabled={saving || completeResults === 0}
+          disabled={saving || !canSubmit}
           className={cn(
             'w-full rounded-lg px-5 py-3 text-sm font-bold shadow-lg transition-all disabled:opacity-50',
             saved
@@ -280,7 +330,9 @@ export default function ResultsPage({ params }: { params: Promise<{ code: string
             ? 'Saving & Computing Scores...'
             : saved
               ? 'Results Saved & Scores Computed!'
-              : `Submit ${completeResults} Result${completeResults === 1 ? '' : 's'}`}
+              : tiedWithoutWinner.length > 0
+                ? `Select winner for ${tiedWithoutWinner.length} tied match${tiedWithoutWinner.length === 1 ? '' : 'es'}`
+                : `Submit ${completeResults} Result${completeResults === 1 ? '' : 's'}`}
         </button>
       </div>
     </div>

@@ -28,10 +28,10 @@ export async function GET(
     .eq('game_id', game.id)
 
   // Aggregate scores per player
-  const playerScores = new Map<string, { total: number; exact: number; matches: number }>()
+  const playerScores = new Map<string, { total: number; exact: number; correct: number; matches: number }>()
 
   for (const p of players ?? []) {
-    playerScores.set(p.id, { total: 0, exact: 0, matches: 0 })
+    playerScores.set(p.id, { total: 0, exact: 0, correct: 0, matches: 0 })
   }
 
   for (const s of scores ?? []) {
@@ -40,22 +40,47 @@ export async function GET(
       current.total += s.points
       current.matches++
       if (s.points === 5) current.exact++
+      if (s.points > 0) current.correct++
     }
   }
 
-  const leaderboard = (players ?? [])
+  const sorted = (players ?? [])
     .map((p) => {
-      const stats = playerScores.get(p.id) ?? { total: 0, exact: 0, matches: 0 }
+      const stats = playerScores.get(p.id) ?? { total: 0, exact: 0, correct: 0, matches: 0 }
       return {
         playerId: p.id,
         displayName: p.display_name,
         isHost: p.is_host,
         totalPoints: stats.total,
         exactScores: stats.exact,
+        correctResults: stats.correct,
         matchesScored: stats.matches,
       }
     })
-    .sort((a, b) => b.totalPoints - a.totalPoints || b.exactScores - a.exactScores)
+    .sort((a, b) =>
+      b.totalPoints - a.totalPoints
+      || b.exactScores - a.exactScores
+      || b.correctResults - a.correctResults
+    )
+
+  // Assign shared ranks: tied players get the same rank number
+  const leaderboard = sorted.map((entry, i) => {
+    let rank = 1
+    if (i > 0) {
+      const prev = sorted[i - 1]
+      const prevRank = (leaderboard[i - 1] as { rank: number }).rank
+      if (
+        entry.totalPoints === prev.totalPoints &&
+        entry.exactScores === prev.exactScores &&
+        entry.correctResults === prev.correctResults
+      ) {
+        rank = prevRank
+      } else {
+        rank = i + 1
+      }
+    }
+    return { ...entry, rank }
+  })
 
   return Response.json({ leaderboard })
 }

@@ -10,7 +10,9 @@ interface LeaderboardEntry {
   isHost: boolean
   totalPoints: number
   exactScores: number
+  correctResults: number
   matchesScored: number
+  rank: number
 }
 
 interface LeaderboardTableProps {
@@ -81,27 +83,28 @@ export default function LeaderboardTable({ code, gameId, compact }: LeaderboardT
             <th className="px-4 py-2">Player</th>
             <th className="px-4 py-2 text-right">Pts</th>
             {!compact && <th className="px-4 py-2 text-right">Exact</th>}
+            {!compact && <th className="px-4 py-2 text-right">Correct</th>}
             {!compact && <th className="px-4 py-2 text-right">Matches</th>}
           </tr>
         </thead>
         <tbody>
-          {displayEntries.map((entry, i) => (
+          {displayEntries.map((entry) => (
             <tr
               key={entry.playerId}
               className={cn(
                 'border-b border-gray-200 transition-colors',
-                i === 0 && 'bg-accent/5',
+                entry.rank === 1 && 'bg-accent/5',
               )}
             >
               <td className="px-4 py-2.5">
                 <span className={cn(
                   'inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold',
-                  i === 0 && 'bg-accent/20 text-accent',
-                  i === 1 && 'bg-slate-400/20 text-gray-500',
-                  i === 2 && 'bg-amber-700/20 text-amber-600',
-                  i > 2 && 'text-gray-400',
+                  entry.rank === 1 && 'bg-accent/20 text-accent',
+                  entry.rank === 2 && 'bg-slate-400/20 text-gray-500',
+                  entry.rank === 3 && 'bg-amber-700/20 text-amber-600',
+                  entry.rank > 3 && 'text-gray-400',
                 )}>
-                  {i + 1}
+                  {entry.rank}
                 </span>
               </td>
               <td className="px-4 py-2.5 font-medium">{entry.displayName}</td>
@@ -110,6 +113,9 @@ export default function LeaderboardTable({ code, gameId, compact }: LeaderboardT
               </td>
               {!compact && (
                 <td className="px-4 py-2.5 text-right text-neon-green">{entry.exactScores}</td>
+              )}
+              {!compact && (
+                <td className="px-4 py-2.5 text-right text-neon-blue">{entry.correctResults}</td>
               )}
               {!compact && (
                 <td className="px-4 py-2.5 text-right text-gray-500">{entry.matchesScored}</td>

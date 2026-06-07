@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { getRoundForMatchId } from '@/lib/engine/rounds'
+import { GROUP_MATCH_MAX_ID, TOTAL_MATCHES } from '@/lib/constants'
 
 export async function POST(
   request: Request,
@@ -53,8 +54,8 @@ export async function POST(
 
   const rows = predictions
     .filter((p) => {
-      if (p.matchId < 1 || p.matchId > 104) return false
-      if (p.matchId <= 72) return p.homeScore != null && p.awayScore != null
+      if (p.matchId < 1 || p.matchId > TOTAL_MATCHES) return false
+      if (p.matchId <= GROUP_MATCH_MAX_ID) return p.homeScore != null && p.awayScore != null
       return p.winnerId != null
     })
     .map((p) => ({

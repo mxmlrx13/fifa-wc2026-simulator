@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { getMatchIdsForRound, type RoundKey } from '@/lib/engine/rounds'
+import { getMatchIdsForRound, getAllRounds, type RoundKey } from '@/lib/engine/rounds'
 import { computePoints } from '@/lib/engine/scoring'
 
 export async function POST(
@@ -52,10 +52,36 @@ export async function POST(
 
   // Use batch to scope valid match IDs, or fall back to current_round
   const roundKey = batch ?? (game.current_round as RoundKey)
+
+  // Validate batch key
+  const validRounds = new Set<string>(getAllRounds())
+  if (!validRounds.has(roundKey)) {
+    return Response.json({ error: `Invalid batch key: "${roundKey}"` }, { status: 400 })
+  }
+
   const validMatchIds = new Set(getMatchIdsForRound(roundKey))
+  if (validMatchIds.size === 0) {
+    return Response.json({ error: `No matches found for batch "${roundKey}"` }, { status: 400 })
+  }
+
   const isKnockoutBatch = !roundKey.startsWith('group_md')
 
-  // Insert official results
+  // Check for knockout draws without explicit winner
+  if (isKnockoutBatch) {
+    const tiedWithoutWinner = results
+      .filter((r) => validMatchIds.has(r.matchId))
+      .filter((r) => r.homeScore === r.awayScore && !r.winnerId)
+      .map((r) => r.matchId)
+
+    if (tiedWithoutWinner.length > 0) {
+      return Response.json({
+        error: 'Knockout matches that end in a draw require a winner (penalties). Select a winner for each tied match.',
+        matchIds: tiedWithoutWinner,
+      }, { status: 400 })
+    }
+  }
+
+  // Build official result rows
   const resultRows = results
     .filter((r) => validMatchIds.has(r.matchId))
     .map((r) => ({
@@ -77,7 +103,6 @@ export async function POST(
   }
 
   // Compute scores for all players
-  // Fetch predictions for the matches in this batch
   const batchMatchIds = resultRows.map((r) => r.match_id)
   const { data: predictions } = await supabase
     .from('predictions')
@@ -93,7 +118,6 @@ export async function POST(
       const actual = resultMap.get(p.match_id)!
 
       if (isKnockoutBatch) {
-        // Knockout scoring: 3 points for correct winner pick, 0 otherwise
         const actualWinnerId = actual.winner_id
         const predictedWinnerId = p.winner_id
         const points = (predictedWinnerId && actualWinnerId && predictedWinnerId === actualWinnerId) ? 3 : 0
@@ -109,7 +133,6 @@ export async function POST(
         }
       }
 
-      // Group match scoring: tiered points
       if (p.home_score === null || p.away_score === null) {
         return {
           player_id: p.player_id,

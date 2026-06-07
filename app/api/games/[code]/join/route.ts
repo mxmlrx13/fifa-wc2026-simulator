@@ -57,5 +57,9 @@ export async function POST(
     return Response.json({ error: 'Failed to join game' }, { status: 500 })
   }
 
-  return Response.json({ playerId: player!.id })
+  if (!player) {
+    return Response.json({ error: 'Player was created but could not be retrieved' }, { status: 500 })
+  }
+
+  return Response.json({ playerId: player.id })
 }

@@ -1,4 +1,5 @@
 import { groupFixtures } from '../data/fixtures'
+import { GROUP_MATCH_MAX_ID } from '../constants'
 
 export type RoundKey =
   | 'group_md1'
@@ -78,7 +79,7 @@ export function getAllRounds(): RoundKey[] {
 }
 
 export function getRoundForMatchId(matchId: number): RoundKey | null {
-  if (matchId >= 1 && matchId <= 72) {
+  if (matchId >= 1 && matchId <= GROUP_MATCH_MAX_ID) {
     const match = groupFixtures.find((m) => m.id === matchId)
     if (match) {
       return `group_md${match.matchday}` as RoundKey
