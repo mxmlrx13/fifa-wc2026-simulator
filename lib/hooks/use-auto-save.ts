@@ -29,7 +29,12 @@ export function useAutoSave({
   // Define the save function using a ref so it can self-reference for retries
   useEffect(() => {
     executeSaveRef.current = async () => {
-      if (savingRef.current) return
+      if (savingRef.current) {
+        // A save is in-flight — reschedule so we don't lose this change
+        if (timerRef.current) clearTimeout(timerRef.current)
+        timerRef.current = setTimeout(() => executeSaveRef.current?.(), 500)
+        return
+      }
       savingRef.current = true
       setStatus('saving')
 
