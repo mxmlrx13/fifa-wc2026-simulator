@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useGameRegistry, removeGame, type GameRegistryEntry } from '@/lib/hooks/use-game-registry'
 import { gameFetch } from '@/lib/supabase/game-fetch'
+import OnboardingFlow from '@/components/onboarding/OnboardingFlow'
 import Badge from '@/components/ui/Badge'
 
 interface GameCardData extends GameRegistryEntry {
@@ -76,6 +77,7 @@ export default function PlayLanding() {
   const [enrichedGames, setEnrichedGames] = useState<GameCardData[]>([])
   const [loaded, setLoaded] = useState(false)
   const enrichedRef = useRef(false)
+  const [showHowItWorks, setShowHowItWorks] = useState(false)
 
   // Enrich games from API on mount — only once
   useEffect(() => {
@@ -121,6 +123,15 @@ export default function PlayLanding() {
   const hasGames = loaded ? enrichedGames.length > 0 : games.length > 0
   const displayGames = loaded ? enrichedGames : games.map((g) => ({ ...g } as GameCardData))
 
+  if (showHowItWorks) {
+    return (
+      <OnboardingFlow
+        mode="back"
+        onComplete={() => setShowHowItWorks(false)}
+      />
+    )
+  }
+
   return (
     <div className="mx-auto max-w-2xl px-4 py-16">
       <div className="animate-fadeIn text-center">
@@ -157,6 +168,15 @@ export default function PlayLanding() {
               {displayGames.map((game) => (
                 <GameCard key={game.code} game={game} />
               ))}
+            </div>
+            <div className="mt-4 text-center">
+              <button
+                type="button"
+                onClick={() => setShowHowItWorks(true)}
+                className="text-[11px] font-semibold text-muted hover:text-ink transition-colors"
+              >
+                How it works
+              </button>
             </div>
           </div>
         )}

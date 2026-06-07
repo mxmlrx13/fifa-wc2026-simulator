@@ -123,6 +123,9 @@ components/
     QualifiedTeamsGrid.tsx            32-team grid grouped by qualification path.
     ThirdPlaceTable.tsx               12 third-place teams ranked with qualified/eliminated status.
 
+  onboarding/
+    OnboardingFlow.tsx                5-step full-screen onboarding. Two modes: 'join' (first visit) and 'back' (re-entry).
+
   multiplayer/
     CreateGameForm.tsx                Inputs: game name, display name. POST to /api/games.
     JoinGameForm.tsx                  Inputs: 6-char code, display name. POST to /api/games/[code]/join.
@@ -173,7 +176,8 @@ lib/
     rounds.ts                         RoundKey (result batches) ↔ match ID mapping. Labels.
     scoring.ts                        Tiered group scoring. computePoints() function.
     host-actions.ts                   getHostNextAction() — pure function for host's single next action.
-    __tests__/                        10 test files, 65+ tests total.
+    quick-fill.ts                     Ranking-based score generation for quick-fill. Deterministic PRNG.
+    __tests__/                        Test files (180+ tests total).
 
   supabase/
     client.ts                         Browser-side Supabase client (anon key).
@@ -185,6 +189,8 @@ lib/
 
   hooks/
     use-auto-save.ts                  Auto-save debounce hook for prediction pages.
+    use-game-registry.ts              localStorage registry (wc26-my-games) for My Games hub. useSyncExternalStore.
+    use-onboarding.ts                 Onboarding flag (wc26-onboarded): isOnboarded(), markOnboarded(), clearOnboarded().
 
 supabase-schema.sql                   Full schema: tables, constraints, RLS policies, migration notes.
 netlify.toml                          Netlify build config.
@@ -509,6 +515,24 @@ function derivePhase(rounds): 'predicting' | 'live' | 'finished' {
 3. Open the next pending round (if predecessor is scored)
 4. Finished (all rounds scored)
 
+### Onboarding Flow
+
+A 5-step full-screen onboarding sequence (`components/onboarding/OnboardingFlow.tsx`) shown to first-time visitors.
+
+**Triggers:**
+- First visit to `/play/[code]` when not a player and `localStorage('wc26-onboarded')` is not set → shows onboarding, then redirects to join form
+- First visit to `/play/join?code=...` when not onboarded → shows onboarding before join form
+- "How it works" link on `/play` hub and in-game dashboard → shows onboarding in "back" mode (no flag change)
+
+**Behavior:**
+- 5 screens with progress dots, Skip jumps to last step, fadeIn 250ms (respects prefers-reduced-motion)
+- Screen 2 pill shows live countdown when deadline enforcement is enabled
+- `mode='join'`: final CTA "Join the game →" sets flag + continues to join form
+- `mode='back'`: final CTA "Back" returns to previous screen, no flag change
+- Never auto-shows twice (flag check), never auto-shows to existing players
+
+**Flag:** `localStorage` key `wc26-onboarded` = `'1'`. Managed by `lib/hooks/use-onboarding.ts`.
+
 ---
 
 ## 8. Two Round-Key Systems
@@ -610,7 +634,7 @@ The React compiler flags `setState` calls at the top of `useEffect` bodies in se
 
 ### Test structure
 
-10 test files in `lib/engine/__tests__/`, 80+ tests covering:
+16 test files in `lib/engine/__tests__/`, 181 tests covering:
 
 - `scoring.test.ts` — Group match scoring tiers (5/3/1/0)
 - `leaderboard.test.ts` — Tiebreaker ordering, shared ranks
@@ -625,6 +649,9 @@ The React compiler flags `setState` calls at the top of `useEffect` bodies in se
 - `full-tournament-simulation.test.ts` — End-to-end simulation with 4 players, 104 matches, verified against naive scoring
 - `api-integration.test.ts` — API-level validation logic: prediction round gating, lock transitions, result entry, auto-transitions, champion bonus
 - `ui-smoke.test.ts` — Static analysis: no bare "Loading...", no deprecated field names, no old design system classes
+- `schedule.test.ts` — Schedule integrity, deadline derivation, chronological order, rejection timing
+- `quick-fill.test.ts` — Ranking-based score generation, bounds, no-overwrite, determinism
+- `onboarding.test.ts` — Onboarding flag logic, trigger conditions (player vs non-player, loaded vs loading)
 
 ### Running tests
 

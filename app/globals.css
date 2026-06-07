@@ -133,6 +133,11 @@ input[type="number"]::-webkit-outer-spin-button {
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes onboardFade {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
 .animate-fadeIn {
   animation: fadeIn 180ms ease-out;
 }

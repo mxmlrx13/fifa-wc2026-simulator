@@ -2,6 +2,7 @@
 
 import { use, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useGame } from '@/lib/supabase/use-game'
 import { getHostNextAction, type HostAction } from '@/lib/engine/host-actions'
 import { PREDICTION_ROUND_LABELS, type PredictionRoundKey } from '@/lib/constants'
@@ -9,6 +10,7 @@ import GameCodeDisplay from '@/components/multiplayer/GameCodeDisplay'
 import PlayerList from '@/components/multiplayer/PlayerList'
 import LeaderboardTable from '@/components/multiplayer/LeaderboardTable'
 import RecoveryLinkDisplay from '@/components/multiplayer/RecoveryLinkDisplay'
+import OnboardingFlow from '@/components/onboarding/OnboardingFlow'
 import Modal from '@/components/ui/Modal'
 import Skeleton from '@/components/ui/Skeleton'
 import CountdownBadge from '@/components/ui/CountdownBadge'
@@ -17,6 +19,7 @@ import {
   getPredictionRoundDeadline,
 } from '@/lib/data/schedule'
 import { registerGame } from '@/lib/hooks/use-game-registry'
+import { isOnboarded, markOnboarded } from '@/lib/hooks/use-onboarding'
 import { cn } from '@/lib/utils'
 
 type Phase = 'predicting' | 'live' | 'finished'
@@ -32,9 +35,37 @@ function derivePhase(rounds: { roundKey: string; status: string }[]): Phase {
 
 export default function GameDashboard({ params }: { params: Promise<{ code: string }> }) {
   const { code } = use(params)
+  const router = useRouter()
   const { game, players, currentPlayer, rounds, loading, error, refetch } = useGame(code)
   const [lockModal, setLockModal] = useState<PredictionRoundKey | null>(null)
   const [locking, setLocking] = useState(false)
+  const [onboardingDismissed, setOnboardingDismissed] = useState(false)
+  const [showHowItWorks, setShowHowItWorks] = useState(false)
+
+  // Show onboarding for non-players who haven't seen it (computed, not effect-based)
+  const shouldOnboard = !loading && !!game && !currentPlayer && !isOnboarded() && !onboardingDismissed
+
+  if (shouldOnboard) {
+    return (
+      <OnboardingFlow
+        mode="join"
+        onComplete={() => {
+          markOnboarded()
+          setOnboardingDismissed(true)
+          router.push(`/play/join?code=${code}`)
+        }}
+      />
+    )
+  }
+
+  if (showHowItWorks) {
+    return (
+      <OnboardingFlow
+        mode="back"
+        onComplete={() => setShowHowItWorks(false)}
+      />
+    )
+  }
 
   if (loading) {
     return (
@@ -151,6 +182,14 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
             {currentPlayer?.recoveryToken && (
               <RecoveryLinkDisplay code={code} recoveryToken={currentPlayer.recoveryToken} />
             )}
+
+            <button
+              type="button"
+              onClick={() => setShowHowItWorks(true)}
+              className="w-full text-[11px] font-semibold text-muted hover:text-ink transition-colors"
+            >
+              How it works
+            </button>
           </div>
         </div>
 
@@ -272,6 +311,16 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
           </Link>
         </div>
 
+        <div className="mt-3 text-center">
+          <button
+            type="button"
+            onClick={() => setShowHowItWorks(true)}
+            className="text-[11px] font-semibold text-muted hover:text-ink transition-colors"
+          >
+            How it works
+          </button>
+        </div>
+
         {lockModal && (
           <Modal
             title={`Lock ${PREDICTION_ROUND_LABELS[lockModal]} predictions?`}
@@ -331,6 +380,16 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
         >
           Compare
         </Link>
+      </div>
+
+      <div className="mt-3 text-center">
+        <button
+          type="button"
+          onClick={() => setShowHowItWorks(true)}
+          className="text-[11px] font-semibold text-muted hover:text-ink transition-colors"
+        >
+          How it works
+        </button>
       </div>
     </div>
   )
