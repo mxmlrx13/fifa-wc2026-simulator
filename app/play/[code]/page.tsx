@@ -20,6 +20,7 @@ import {
 } from '@/lib/data/schedule'
 import { registerGame } from '@/lib/hooks/use-game-registry'
 import { isOnboarded, markOnboarded } from '@/lib/hooks/use-onboarding'
+import ShareInviteButton from '@/components/multiplayer/ShareInviteButton'
 import { cn } from '@/lib/utils'
 
 type Phase = 'predicting' | 'live' | 'finished'
@@ -129,6 +130,9 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
           </h1>
           <GameCodeDisplay code={game.code} />
           <p className="mt-3 text-[11px] text-muted">Share this code with friends to join</p>
+          <div className="mt-4">
+            <ShareInviteButton gameName={game.name} code={game.code} />
+          </div>
         </div>
 
         {/* Countdown + Primary CTA */}
@@ -309,6 +313,15 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
           >
             Full Leaderboard
           </Link>
+          {rounds.some((r) => r.roundKey === 'group' && (r.status === 'locked' || r.status === 'scored')) && (
+            <Link
+              href={`/play/${code}/consensus`}
+              className="flex items-center justify-center rounded-[var(--radius-card)] border border-line bg-card px-4 py-3.5 text-sm font-bold text-ink transition-all hover:bg-paper"
+            >
+              Group Pulse
+            </Link>
+          )}
+          <ShareInviteButton gameName={game.name} code={game.code} variant="compact" />
         </div>
 
         <div className="mt-3 text-center">
@@ -380,6 +393,13 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
         >
           Compare
         </Link>
+        <Link
+          href={`/play/${code}/consensus`}
+          className="flex items-center justify-center rounded-[var(--radius-card)] border border-line bg-card px-4 py-3.5 text-sm font-bold text-ink transition-all hover:bg-paper"
+        >
+          Group Pulse
+        </Link>
+        <ShareInviteButton gameName={game.name} code={game.code} variant="compact" />
       </div>
 
       <div className="mt-3 text-center">

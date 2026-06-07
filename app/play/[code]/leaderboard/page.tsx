@@ -4,11 +4,14 @@ import { use } from 'react'
 import Link from 'next/link'
 import { useGame } from '@/lib/supabase/use-game'
 import LeaderboardTable from '@/components/multiplayer/LeaderboardTable'
+import ShareStandingsButton from '@/components/multiplayer/ShareStandingsButton'
 import Skeleton from '@/components/ui/Skeleton'
 
 export default function LeaderboardPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = use(params)
-  const { game, currentPlayer, loading } = useGame(code)
+  const { game, currentPlayer, rounds, loading } = useGame(code)
+
+  const hasScored = rounds.some((r) => r.status === 'scored')
 
   if (loading) {
     return (
@@ -29,6 +32,14 @@ export default function LeaderboardPage({ params }: { params: Promise<{ code: st
       </h1>
 
       <LeaderboardTable code={code} gameId={game?.id} currentPlayerId={currentPlayer?.id} />
+
+      {hasScored && game && (
+        <ShareStandingsButton
+          gameName={game.name}
+          code={code}
+          currentPlayerName={currentPlayer?.displayName}
+        />
+      )}
     </div>
   )
 }

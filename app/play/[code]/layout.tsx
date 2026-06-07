@@ -1,21 +1,12 @@
 import type { Metadata } from 'next'
 import { createServiceClient } from '@/lib/supabase/server'
-import JoinPageClient from '@/components/multiplayer/JoinPageClient'
 
 export async function generateMetadata({
-  searchParams,
+  params,
 }: {
-  searchParams: Promise<{ code?: string }>
+  params: Promise<{ code: string }>
 }): Promise<Metadata> {
-  const { code } = await searchParams
-
-  if (!code) {
-    return {
-      title: 'Join a Game — WC2026 Prediction Game',
-      description: 'Enter a game code to join a multiplayer prediction game.',
-    }
-  }
-
+  const { code } = await params
   const supabase = await createServiceClient()
 
   const { data: game } = await supabase
@@ -25,9 +16,7 @@ export async function generateMetadata({
     .single()
 
   if (!game) {
-    return {
-      title: 'Join a Game — WC2026 Prediction Game',
-    }
+    return { title: 'Game not found' }
   }
 
   const { count } = await supabase
@@ -46,6 +35,6 @@ export async function generateMetadata({
   }
 }
 
-export default function JoinGamePage() {
-  return <JoinPageClient />
+export default function GameLayout({ children }: { children: React.ReactNode }) {
+  return children
 }
