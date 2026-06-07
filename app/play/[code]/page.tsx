@@ -16,6 +16,7 @@ import {
   DEADLINE_ENFORCEMENT_ENABLED,
   getPredictionRoundDeadline,
 } from '@/lib/data/schedule'
+import { registerGame } from '@/lib/hooks/use-game-registry'
 import { cn } from '@/lib/utils'
 
 type Phase = 'predicting' | 'live' | 'finished'
@@ -55,6 +56,9 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
       </div>
     )
   }
+
+  // Register game in localStorage for My Games hub
+  registerGame(game.code, game.name)
 
   const isHost = currentPlayer?.isHost ?? false
   const phase = derivePhase(rounds)

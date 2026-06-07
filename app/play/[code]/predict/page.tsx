@@ -18,6 +18,7 @@ import {
   type PredictionRoundKey,
 } from '@/lib/constants'
 import PredictionProvider from '@/components/multiplayer/PredictionProvider'
+import { quickFillGroupMatches, quickFillKnockoutPicks } from '@/lib/engine/quick-fill'
 import GroupCard from '@/components/groups/GroupCard'
 import GroupStandingsTable from '@/components/groups/GroupStandingsTable'
 import ChampionPicker from '@/components/multiplayer/ChampionPicker'
@@ -42,10 +43,12 @@ function GroupPhaseInner({
   championPick,
   onChampionPick,
   readOnly,
+  onQuickFill,
 }: {
   championPick: string | null
   onChampionPick: (teamId: string) => void
   readOnly: boolean
+  onQuickFill?: () => void
 }) {
   const { state, groupStandings } = useTournament()
   const [activeTab, setActiveTab] = useState<GroupTab>('groups')
@@ -54,6 +57,7 @@ function GroupPhaseInner({
     (m) => m.homeScore !== null && m.awayScore !== null,
   ).length
   const totalGroupMatches = state.groupMatches.length
+  const remaining = totalGroupMatches - completedGroupMatches
 
   const tabs: { key: GroupTab; label: string }[] = [
     { key: 'groups', label: 'Groups' },
@@ -79,6 +83,15 @@ function GroupPhaseInner({
             style={{ width: `${(completedGroupMatches / totalGroupMatches) * 100}%` }}
           />
         </div>
+        {!readOnly && remaining > 0 && onQuickFill && (
+          <button
+            type="button"
+            onClick={onQuickFill}
+            className="mt-2 w-full rounded-[var(--radius-button)] border border-line bg-paper px-3 py-2 text-xs font-semibold text-ink transition-all hover:bg-card"
+          >
+            Quick-fill remaining ({remaining})
+          </button>
+        )}
         {championPick && (
           <div className="mt-2 flex items-center gap-1.5 text-[11px] text-muted">
             <span>Champion:</span>
@@ -179,6 +192,7 @@ function KnockoutPhaseInner({
   onPick,
   readOnly,
   scoredMatchPoints,
+  onQuickFill,
 }: {
   rounds: GameRound[]
   activeRound: PredictionRoundKey
@@ -187,6 +201,7 @@ function KnockoutPhaseInner({
   onPick: (matchId: number, winnerId: string) => void
   readOnly: boolean
   scoredMatchPoints?: Map<number, number>
+  onQuickFill?: () => void
 }) {
   const [selectedRound, setSelectedRound] = useState<PredictionRoundKey>(activeRound)
 
@@ -233,15 +248,26 @@ function KnockoutPhaseInner({
         })}
       </div>
 
-      {/* Pick count */}
-      <p className="mb-4 text-[11px] text-muted tabular-nums">
-        {pickCount}/{roundFixtures.length} picks
-        {isRoundOpen && (
-          <span className="ml-2 text-navy">
-            ({getKnockoutPointsForMatch(min)} pts each)
-          </span>
+      {/* Pick count + quick-fill */}
+      <div className="mb-4 flex items-center gap-3">
+        <p className="text-[11px] text-muted tabular-nums">
+          {pickCount}/{roundFixtures.length} picks
+          {isRoundOpen && (
+            <span className="ml-2 text-navy">
+              ({getKnockoutPointsForMatch(min)} pts each)
+            </span>
+          )}
+        </p>
+        {isRoundOpen && !readOnly && pickCount < roundFixtures.length && onQuickFill && (
+          <button
+            type="button"
+            onClick={onQuickFill}
+            className="rounded-[var(--radius-button)] border border-line bg-paper px-2.5 py-1 text-[10px] font-semibold text-ink transition-all hover:bg-card"
+          >
+            Pick remaining by ranking
+          </button>
         )}
-      </p>
+      </div>
 
       {/* Fixture cards */}
       <div className="space-y-2">
@@ -371,8 +397,9 @@ function PredictInner({
   rounds: GameRound[]
   currentChampionPick: string | null
 }) {
-  const { state } = useTournament()
+  const { state, dispatch } = useTournament()
   const stateRef = useRef(state)
+  const [showQuickFillBanner, setShowQuickFillBanner] = useState(false)
   const championPickRef = useRef(currentChampionPick)
   const knockoutPicksRef = useRef<Record<number, string>>({})
 
@@ -540,13 +567,44 @@ function PredictInner({
   const groupReadOnly = !isGroupOpen
   const koReadOnly = !openKoRound
 
+  const handleQuickFillGroups = useCallback(() => {
+    const { filled, filledIds } = quickFillGroupMatches(state.groupMatches)
+    for (const m of filled) {
+      if (filledIds.has(m.id) && m.homeScore !== null && m.awayScore !== null) {
+        dispatch({ type: 'SET_MATCH_SCORE', matchId: m.id, homeScore: m.homeScore, awayScore: m.awayScore })
+      }
+    }
+    setShowQuickFillBanner(true)
+    setTimeout(() => setShowQuickFillBanner(false), 3000)
+    markDirty()
+  }, [state.groupMatches, dispatch, markDirty])
+
+  const handleQuickFillKnockout = useCallback(() => {
+    const newPicks = quickFillKnockoutPicks(knockoutFixtures, knockoutPicks)
+    for (const [matchIdStr, winnerId] of Object.entries(newPicks)) {
+      const matchId = Number(matchIdStr)
+      setKnockoutPicks((prev) => ({ ...prev, [matchId]: winnerId }))
+    }
+    setShowQuickFillBanner(true)
+    setTimeout(() => setShowQuickFillBanner(false), 3000)
+    markDirty()
+  }, [knockoutFixtures, knockoutPicks, markDirty])
+
   return (
     <>
+      {/* Quick-fill banner */}
+      {showQuickFillBanner && (
+        <div className="mb-4 rounded-[var(--radius-card)] border border-amber-300 bg-amber-50 px-4 py-2.5 text-xs font-semibold text-amber-800 animate-fadeIn">
+          Quick-filled with ranking-based predictions. Review and adjust as needed.
+        </div>
+      )}
+
       {isGroupOpen || (isGroupLocked && !isKnockoutPhase) ? (
         <GroupPhaseInner
           championPick={championPick}
           onChampionPick={handleChampionPick}
           readOnly={groupReadOnly}
+          onQuickFill={isGroupOpen ? handleQuickFillGroups : undefined}
         />
       ) : isKnockoutPhase ? (
         <KnockoutPhaseInner
@@ -557,6 +615,7 @@ function PredictInner({
           onPick={handleKnockoutPick}
           readOnly={koReadOnly}
           scoredMatchPoints={scoredMatchPoints.size > 0 ? scoredMatchPoints : undefined}
+          onQuickFill={!koReadOnly ? handleQuickFillKnockout : undefined}
         />
       ) : (
         <div className="rounded-[var(--radius-card)] border border-line bg-card p-6 text-center">

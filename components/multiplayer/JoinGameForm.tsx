@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ensureAnonymousSession } from '@/lib/supabase/auth'
+import { registerGame } from '@/lib/hooks/use-game-registry'
 import RecoveryLinkModal from './RecoveryLinkModal'
 
 interface JoinGameFormProps {
@@ -37,6 +38,8 @@ export default function JoinGameForm({ initialCode }: JoinGameFormProps) {
         setError(data.error ?? 'Failed to join game')
         return
       }
+
+      registerGame(upperCode, upperCode)
 
       if (data.alreadyJoined) {
         router.push(`/play/${upperCode}`)

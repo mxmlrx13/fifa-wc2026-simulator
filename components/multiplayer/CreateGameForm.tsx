@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ensureAnonymousSession } from '@/lib/supabase/auth'
+import { registerGame } from '@/lib/hooks/use-game-registry'
 import RecoveryLinkModal from './RecoveryLinkModal'
 
 export default function CreateGameForm() {
@@ -32,6 +33,8 @@ export default function CreateGameForm() {
         setError(data.error ?? 'Failed to create game')
         return
       }
+
+      registerGame(data.code, name)
 
       // Show recovery modal before navigating
       if (data.recoveryToken) {
