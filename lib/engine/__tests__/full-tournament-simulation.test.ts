@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { computePoints } from '../scoring'
+import { computeLeaderboard, computeMovement } from '../leaderboard'
 import {
   getKnockoutPointsForMatch,
   CHAMPION_BONUS,
@@ -487,6 +488,112 @@ describe('Full tournament simulation', () => {
       expect(PREDICTION_ROUND_RANGES.qf).toEqual([97, 100])
       expect(PREDICTION_ROUND_RANGES.sf).toEqual([101, 102])
       expect(PREDICTION_ROUND_RANGES.final).toEqual([103, 104])
+    })
+  })
+
+  describe('leaderboard snapshots per batch', () => {
+    // Simulate batch-by-batch scoring and verify one snapshot row per player per batch
+
+    const batches = [
+      { key: 'group_md1', matchday: 1 },
+      { key: 'group_md2', matchday: 2 },
+      { key: 'group_md3', matchday: 3 },
+    ]
+
+    it('produces exactly N_PLAYERS snapshot rows per group batch', () => {
+      for (const batch of batches) {
+        const batchResults = groupResults.filter((r) => {
+          const fixture = groupFixtures.find((f) => f.id === r.matchId)!
+          return fixture.matchday === batch.matchday
+        })
+
+        // Score each player for this batch
+        const scores: Array<{ player_id: string; points: number; match_id: number }> = []
+        for (const player of players) {
+          for (const result of batchResults) {
+            const pred = player.groupPredictions.find((p) => p.matchId === result.matchId)!
+            const { points } = computePoints(pred.homeScore, pred.awayScore, result.homeScore, result.awayScore)
+            scores.push({ player_id: player.id, points, match_id: result.matchId })
+          }
+        }
+
+        // Compute leaderboard = one snapshot
+        const lb = computeLeaderboard(
+          players.map((p) => ({ id: p.id, display_name: p.id, is_host: false })),
+          scores,
+        )
+
+        // Exactly N_PLAYERS rows
+        expect(lb).toHaveLength(N_PLAYERS)
+        // Every player has a row
+        const ids = new Set(lb.map((e) => e.playerId))
+        expect(ids.size).toBe(N_PLAYERS)
+        // Ranks are valid (1-based, no zeros)
+        for (const entry of lb) {
+          expect(entry.rank).toBeGreaterThanOrEqual(1)
+          expect(entry.rank).toBeLessThanOrEqual(N_PLAYERS)
+        }
+      }
+    })
+
+    it('cumulative scores increase or stay the same across batches', () => {
+      const cumulativeScores = new Map<string, number>()
+
+      for (const batch of batches) {
+        const batchResults = groupResults.filter((r) => {
+          const fixture = groupFixtures.find((f) => f.id === r.matchId)!
+          return fixture.matchday === batch.matchday
+        })
+
+        for (const player of players) {
+          let batchTotal = 0
+          for (const result of batchResults) {
+            const pred = player.groupPredictions.find((p) => p.matchId === result.matchId)!
+            const { points } = computePoints(pred.homeScore, pred.awayScore, result.homeScore, result.awayScore)
+            batchTotal += points
+          }
+          const prev = cumulativeScores.get(player.id) ?? 0
+          cumulativeScores.set(player.id, prev + batchTotal)
+          expect(cumulativeScores.get(player.id)!).toBeGreaterThanOrEqual(prev)
+        }
+      }
+    })
+
+    it('movement is "new" for first batch, then up/down/same for subsequent', () => {
+      let previousSnapshot: Array<{ player_id: string; rank: number }> | null = null
+      const allScores: Array<{ player_id: string; points: number; match_id: number }> = []
+
+      for (const batch of batches) {
+        const batchResults = groupResults.filter((r) => {
+          const fixture = groupFixtures.find((f) => f.id === r.matchId)!
+          return fixture.matchday === batch.matchday
+        })
+
+        for (const player of players) {
+          for (const result of batchResults) {
+            const pred = player.groupPredictions.find((p) => p.matchId === result.matchId)!
+            const { points } = computePoints(pred.homeScore, pred.awayScore, result.homeScore, result.awayScore)
+            allScores.push({ player_id: player.id, points, match_id: result.matchId })
+          }
+        }
+
+        const lb = computeLeaderboard(
+          players.map((p) => ({ id: p.id, display_name: p.id, is_host: false })),
+          allScores,
+        )
+        const movement = computeMovement(lb, previousSnapshot)
+
+        for (const player of players) {
+          const m = movement.get(player.id)!
+          if (batch.key === 'group_md1') {
+            expect(m.direction).toBe('new')
+          } else {
+            expect(['up', 'down', 'same']).toContain(m.direction)
+          }
+        }
+
+        previousSnapshot = lb.map((e) => ({ player_id: e.playerId, rank: e.rank }))
+      }
     })
   })
 

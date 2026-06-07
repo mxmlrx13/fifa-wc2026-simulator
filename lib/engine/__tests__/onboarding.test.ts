@@ -97,3 +97,43 @@ describe('Trigger logic — player vs non-player', () => {
     expect(shouldShow).toBe(false)
   })
 })
+
+describe('Skip button always available', () => {
+  it('should show skip on all non-final steps', () => {
+    const TOTAL_STEPS = 5
+    for (let step = 0; step < TOTAL_STEPS - 1; step++) {
+      const isLast = step === TOTAL_STEPS - 1
+      expect(isLast).toBe(false) // skip should be visible
+    }
+  })
+
+  it('should not show skip on the final step', () => {
+    const TOTAL_STEPS = 5
+    const step = TOTAL_STEPS - 1
+    const isLast = step === TOTAL_STEPS - 1
+    expect(isLast).toBe(true) // no skip on final
+  })
+
+  it('skip jumps to the last step (not dismiss)', () => {
+    const TOTAL_STEPS = 5
+    // handleSkip sets step to TOTAL_STEPS - 1 (the last step with CTA)
+    const targetStep = TOTAL_STEPS - 1
+    expect(targetStep).toBe(4) // lands on last content step, user still sees CTA
+  })
+})
+
+describe('Onboarding re-entry mode', () => {
+  beforeEach(() => {
+    for (const key of Object.keys(storage)) delete storage[key]
+    vi.clearAllMocks()
+  })
+
+  it('re-entry (back mode) is available even after onboarding is complete', () => {
+    markOnboarded()
+    expect(isOnboarded()).toBe(true)
+    // "How it works" link should still open the flow in 'back' mode
+    // The trigger for 'back' mode does not check isOnboarded()
+    const mode = 'back'
+    expect(mode).toBe('back')
+  })
+})

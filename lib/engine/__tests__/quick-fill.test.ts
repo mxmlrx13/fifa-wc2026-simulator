@@ -121,3 +121,41 @@ describe('quickFillKnockoutPicks', () => {
     expect(picks[73]).toBe('ESP')
   })
 })
+
+describe('quick-fill purity and immutability', () => {
+  it('should not mutate the original matches array', () => {
+    const original = groupFixtures.map((m) => ({ ...m }))
+    const originalSnapshot = JSON.stringify(original)
+    quickFillGroupMatches(original)
+    expect(JSON.stringify(original)).toBe(originalSnapshot)
+  })
+
+  it('should be referentially stable — same input produces same output', () => {
+    const input = groupFixtures.map((m) => ({ ...m }))
+    const run1 = quickFillGroupMatches(input)
+    const run2 = quickFillGroupMatches(input)
+
+    expect(run1.filled.map((m) => [m.id, m.homeScore, m.awayScore]))
+      .toEqual(run2.filled.map((m) => [m.id, m.homeScore, m.awayScore]))
+    expect([...run1.filledIds].sort()).toEqual([...run2.filledIds].sort())
+  })
+
+  it('should produce integer scores for all team combinations', () => {
+    const { filled } = quickFillGroupMatches(groupFixtures)
+    for (const m of filled) {
+      expect(Number.isInteger(m.homeScore)).toBe(true)
+      expect(Number.isInteger(m.awayScore)).toBe(true)
+    }
+  })
+
+  it('quickFillKnockoutPicks should not mutate existingPicks', () => {
+    const fixtures = [
+      { matchId: 73, homeTeamId: 'BRA', awayTeamId: 'CUW' },
+      { matchId: 74, homeTeamId: 'FRA', awayTeamId: 'NOR' },
+    ]
+    const existing: Record<number, string> = { 73: 'CUW' }
+    const existingSnapshot = JSON.stringify(existing)
+    quickFillKnockoutPicks(fixtures, existing)
+    expect(JSON.stringify(existing)).toBe(existingSnapshot)
+  })
+})

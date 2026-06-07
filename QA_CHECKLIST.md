@@ -203,6 +203,29 @@ Estimated time: 20 minutes. Requires two browsers (e.g. Chrome + Firefox) and on
 
 ---
 
+## 17. Phase 2 Features (Prompts 9-14)
+
+| # | Action | Expected | Pass |
+|---|--------|----------|------|
+| 17.1 | Open app in fresh browser profile (no localStorage), navigate to `/play/[CODE]` | Onboarding flow appears (full-screen, 5 steps) | [ ] |
+| 17.2 | Tap through all 5 onboarding steps | Each step has progress dots, Skip button on steps 1-4 | [ ] |
+| 17.3 | Click Skip on step 2 | Jumps to step 5 (last step with CTA). Skip never traps the user | [ ] |
+| 17.4 | Complete onboarding, join game, reload page | Onboarding does NOT reappear (localStorage flag persists) | [ ] |
+| 17.5 | Find "How it works" link in dashboard | Clicking it re-opens onboarding in "back" mode (no join CTA) | [ ] |
+| 17.6 | Create 2 games from the same browser | Navigate to `/play` → My Games hub shows both games with codes | [ ] |
+| 17.7 | Open predict page, click "Quick Fill" | All 72 group scores auto-fill with plausible scores (0-4). Standings update | [ ] |
+| 17.8 | Edit a few quick-filled scores manually | Edited scores persist, quick-fill doesn't overwrite them on re-fill | [ ] |
+| 17.9 | On dashboard, find "Share Invite" button | Copies/shares game link. Button shows "Copied!" feedback | [ ] |
+| 17.10 | Paste shared link in a real chat app | Link preview shows OG image + game name (if deployed) | [ ] |
+| 17.11 | Lock predictions with 2+ players, navigate to `/play/[CODE]/consensus` | Champion votes, group winner consensus, boldest picks visible | [ ] |
+| 17.12 | Run `npm run seed:demo`, join demo game | Dashboard shows locked group, MD1 results scored | [ ] |
+| 17.13 | Enter MD2 results on demo game | Leaderboard updates. Movement arrows show (up/down/new) | [ ] |
+| 17.14 | Check breakdown page after MD1 results | Round recap card shows subtotals, PointsChip colors correct | [ ] |
+| 17.15 | Countdown badge visible on predict page (before kickoff) | Shows "locks in Xd Xh", no layout shift when timer ticks | [ ] |
+| 17.16 | After group deadline passes (or simulate), predictions auto-lock even if host didn't lock | Effective status = locked. "Enter Predictions" becomes read-only | [ ] |
+
+---
+
 ## Visual Parity Checklist
 
 Compare each screen against `design-refs/screens.html`:

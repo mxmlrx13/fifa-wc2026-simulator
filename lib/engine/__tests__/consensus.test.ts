@@ -176,3 +176,42 @@ describe('computePickSplits', () => {
     expect(splits[0].total).toBe(1)
   })
 })
+
+describe('Consensus edge cases', () => {
+  it('computeChampionVotes handles empty player list', () => {
+    expect(computeChampionVotes([])).toEqual([])
+  })
+
+  it('computeChampionVotes when all players pick the same champion', () => {
+    const players = [
+      { id: 'p1', championPick: 'BRA' },
+      { id: 'p2', championPick: 'BRA' },
+      { id: 'p3', championPick: 'BRA' },
+    ]
+    const votes = computeChampionVotes(players)
+    expect(votes).toHaveLength(1)
+    expect(votes[0]).toEqual({ teamId: 'BRA', count: 3, total: 3 })
+  })
+
+  it('computeGroupWinnerConsensus returns empty for no players', () => {
+    const result = computeGroupWinnerConsensus([], [])
+    expect(result).toEqual([])
+  })
+
+  it('computePickSplits returns empty for no predictions', () => {
+    expect(computePickSplits([])).toEqual([])
+  })
+
+  it('computeBoldestPicks with all unique picks returns all as bold', () => {
+    const players = [
+      { id: 'p1', displayName: 'Alice', championPick: 'BRA' },
+      { id: 'p2', displayName: 'Bob', championPick: 'FRA' },
+      { id: 'p3', displayName: 'Carol', championPick: 'ARG' },
+    ]
+    const picks = computeBoldestPicks(players, [])
+    // Each champion pick is unique → all are bold
+    expect(picks).toHaveLength(3)
+    const teamIds = picks.map((p) => p.teamId).sort()
+    expect(teamIds).toEqual(['ARG', 'BRA', 'FRA'])
+  })
+})

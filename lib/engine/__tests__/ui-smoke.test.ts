@@ -28,8 +28,11 @@ function relativePath(filePath: string): string {
 }
 
 describe('UI smoke tests (static analysis)', () => {
-  it('should not contain bare "Loading..." strings in app/play/**/*.tsx', () => {
-    const files = findFiles(['app/play'], '.tsx')
+  it('should not contain bare "Loading..." strings in app/ or components/', () => {
+    const files = [
+      ...findFiles(['app/play'], '.tsx'),
+      ...findFiles(['components'], '.tsx'),
+    ]
     const offending: string[] = []
 
     for (const file of files) {
@@ -127,6 +130,43 @@ describe('UI smoke tests (static analysis)', () => {
     expect(
       offending,
       `Files using deprecated design system classes:\n${message}`,
+    ).toEqual([])
+  })
+
+  it('should not use hardcoded hex colors outside globals.css and design-refs/', () => {
+    const files = [
+      ...findFiles(['app', 'components'], '.tsx'),
+    ]
+    const offending: { file: string; colors: string[] }[] = []
+
+    // Allowlist: OG image generator must use inline styles (no CSS vars in satori)
+    const allowlist = ['app/opengraph-image.tsx']
+
+    for (const file of files) {
+      const rel = relativePath(file)
+      if (allowlist.some((a) => rel.endsWith(a))) continue
+      if (rel.includes('__tests__')) continue
+
+      const content = readFile(file)
+      // Match hex colors in className strings or style objects
+      // Captures #xxx, #xxxx, #xxxxxx, #xxxxxxxx patterns in brackets [#...]
+      const hexInBrackets = content.match(/\[#[0-9a-fA-F]{3,8}\]/g) ?? []
+      // Also match inline style hex: '#xxxxxx'
+      const hexInStyle = content.match(/['"]#[0-9a-fA-F]{3,8}['"]/g) ?? []
+      const allHex = [...new Set([...hexInBrackets, ...hexInStyle])]
+
+      if (allHex.length > 0) {
+        offending.push({ file: rel, colors: allHex })
+      }
+    }
+
+    const message = offending
+      .map((o) => `${o.file}: ${o.colors.join(', ')}`)
+      .join('\n')
+
+    expect(
+      offending,
+      `Files with hardcoded hex colors (use design tokens instead):\n${message}`,
     ).toEqual([])
   })
 })

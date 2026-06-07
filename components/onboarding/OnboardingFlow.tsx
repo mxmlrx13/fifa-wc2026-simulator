@@ -284,7 +284,7 @@ export default function OnboardingFlow({ mode, onComplete }: OnboardingFlowProps
           <h2 className="font-[family-name:var(--font-display)] text-[23px] font-bold leading-[1.2] tracking-[-0.01em] text-ink mb-2.5">
             {content.title}
           </h2>
-          <div className="text-[13px] leading-[1.65] text-[#4a5161] mb-4 [&_b]:text-ink">
+          <div className="text-[13px] leading-[1.65] text-muted mb-4 [&_b]:text-ink">
             {content.body}
           </div>
           <div className="mb-auto">

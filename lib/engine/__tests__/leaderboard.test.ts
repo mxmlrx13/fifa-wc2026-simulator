@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { computeLeaderboard, computeMovement, getPreviousBatch } from '../leaderboard'
+import { getAllRounds } from '../rounds'
 
 const players = [
   { id: 'p1', display_name: 'Alice', is_host: true },
@@ -187,5 +188,91 @@ describe('getPreviousBatch', () => {
     expect(getPreviousBatch('group_md3')).toBe('group_md2')
     expect(getPreviousBatch('r32')).toBe('group_md3')
     expect(getPreviousBatch('final')).toBe('sf')
+  })
+
+  it('covers entire round sequence without gaps', () => {
+    const allRounds = getAllRounds()
+    for (let i = 1; i < allRounds.length; i++) {
+      expect(getPreviousBatch(allRounds[i])).toBe(allRounds[i - 1])
+    }
+  })
+})
+
+describe('Snapshot/movement matrix across batches', () => {
+  it('simulates MD1 → MD2 → MD3 snapshot progression', () => {
+    // MD1: p1 leads
+    const scoresMd1 = [
+      { player_id: 'p1', points: 15, match_id: 1 },
+      { player_id: 'p2', points: 10, match_id: 1 },
+      { player_id: 'p3', points: 5, match_id: 1 },
+    ]
+    const lb1 = computeLeaderboard(players, scoresMd1)
+    expect(lb1.map((e) => e.playerId)).toEqual(['p1', 'p2', 'p3'])
+
+    // Snapshot from MD1
+    const snap1 = lb1.map((e) => ({ player_id: e.playerId, rank: e.rank }))
+
+    // MD2: p3 surges, p1 stagnates
+    const scoresMd2 = [
+      ...scoresMd1,
+      { player_id: 'p1', points: 0, match_id: 2 },
+      { player_id: 'p2', points: 5, match_id: 2 },
+      { player_id: 'p3', points: 20, match_id: 2 },
+    ]
+    const lb2 = computeLeaderboard(players, scoresMd2)
+    expect(lb2[0].playerId).toBe('p3') // p3 now first (25 pts)
+
+    const movement2 = computeMovement(lb2, snap1)
+    expect(movement2.get('p3')!.direction).toBe('up')
+    expect(movement2.get('p3')!.delta).toBe(2)
+    expect(movement2.get('p1')!.direction).toBe('down')
+
+    // Snapshot from MD2
+    const snap2 = lb2.map((e) => ({ player_id: e.playerId, rank: e.rank }))
+
+    // MD3: p1 bounces back to top
+    const scoresMd3 = [
+      ...scoresMd2,
+      { player_id: 'p1', points: 25, match_id: 3 },
+      { player_id: 'p2', points: 5, match_id: 3 },
+      { player_id: 'p3', points: 1, match_id: 3 },
+    ]
+    const lb3 = computeLeaderboard(players, scoresMd3)
+    expect(lb3[0].playerId).toBe('p1') // p1 back on top (40 pts)
+
+    const movement3 = computeMovement(lb3, snap2)
+    expect(movement3.get('p1')!.direction).toBe('up')
+    expect(movement3.get('p3')!.direction).toBe('down')
+  })
+
+  it('produces one snapshot row per player per batch', () => {
+    const scores = [
+      { player_id: 'p1', points: 5, match_id: 1 },
+      { player_id: 'p2', points: 3, match_id: 1 },
+      { player_id: 'p3', points: 1, match_id: 1 },
+    ]
+    const lb = computeLeaderboard(players, scores)
+    // Each player gets exactly one leaderboard entry (= one snapshot row)
+    expect(lb).toHaveLength(players.length)
+    const playerIds = new Set(lb.map((e) => e.playerId))
+    expect(playerIds.size).toBe(players.length)
+  })
+
+  it('round recap: movement delta is always non-negative', () => {
+    const scores = [
+      { player_id: 'p1', points: 10, match_id: 1 },
+      { player_id: 'p2', points: 5, match_id: 1 },
+      { player_id: 'p3', points: 8, match_id: 1 },
+    ]
+    const lb = computeLeaderboard(players, scores)
+    const prev = [
+      { player_id: 'p1', rank: 3 },
+      { player_id: 'p2', rank: 1 },
+      { player_id: 'p3', rank: 2 },
+    ]
+    const movement = computeMovement(lb, prev)
+    for (const [, m] of movement) {
+      expect(m.delta).toBeGreaterThanOrEqual(0)
+    }
   })
 })

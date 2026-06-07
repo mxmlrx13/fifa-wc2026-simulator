@@ -198,3 +198,38 @@ describe('MD3 simultaneous kickoffs', () => {
     expect(m11).toBe(m12)
   })
 })
+
+describe('Deadline backstop (host forgot to lock)', () => {
+  it('should auto-lock group predictions at first kickoff even if host never locked', () => {
+    // Scenario: host left round status as "open", but kickoff has passed.
+    // The effective status should be "locked" because isDeadlinePassed returns true.
+    const roundStatus = 'open'
+    const kickoffPassed = new Date('2026-06-11T19:00:00Z') // exact kickoff
+    const effective = isDeadlinePassed('group', kickoffPassed) ? 'locked' : roundStatus
+    expect(effective).toBe('locked')
+  })
+
+  it('should auto-lock knockout predictions at their respective kickoffs', () => {
+    for (const round of PREDICTION_ROUNDS) {
+      const deadline = getPredictionRoundDeadline(round)
+      // One second after deadline
+      const afterDeadline = new Date(deadline.getTime() + 1000)
+      expect(isDeadlinePassed(round, afterDeadline)).toBe(true)
+    }
+  })
+
+  it('should NOT auto-lock when all kickoffs are in the future', () => {
+    const wellBefore = new Date('2025-01-01T00:00:00Z')
+    for (const round of PREDICTION_ROUNDS) {
+      expect(isDeadlinePassed(round, wellBefore)).toBe(false)
+    }
+  })
+
+  it('should correctly backstop each round independently', () => {
+    // After group kickoff but before R32 kickoff
+    const r32Deadline = getPredictionRoundDeadline('r32')
+    const afterGroupBeforeR32 = new Date(r32Deadline.getTime() - 60_000)
+    expect(isDeadlinePassed('group', afterGroupBeforeR32)).toBe(true)
+    expect(isDeadlinePassed('r32', afterGroupBeforeR32)).toBe(false)
+  })
+})

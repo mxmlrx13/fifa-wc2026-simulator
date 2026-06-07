@@ -41,7 +41,7 @@ export default function ShareStandingsButton({ gameName, code, currentPlayerName
       disabled={loading}
       className="mt-4 w-full rounded-[var(--radius-button)] border border-navy/20 bg-navy/5 px-4 py-3 text-sm font-bold text-navy transition-all hover:bg-navy/10 disabled:opacity-50"
     >
-      {feedback ?? (loading ? 'Loading...' : 'Share Standings')}
+      {feedback ?? (loading ? 'Sharing…' : 'Share Standings')}
     </button>
   )
 }

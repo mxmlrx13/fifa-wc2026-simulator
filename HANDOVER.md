@@ -166,6 +166,7 @@ lib/
     fixtures.ts                       72 group matches generated from groups (round-robin).
     bracket-template.ts               32 knockout matches with slot strings.
     third-place-clusters.ts           8 third-place bracket slots with group constraints.
+    schedule.ts                       Official FIFA WC2026 match schedule (104 entries). Deadline derivation functions.
 
   engine/
     tournament.ts                     Orchestrator: standings → 3rd place → bracket → champion.
@@ -177,7 +178,9 @@ lib/
     scoring.ts                        Tiered group scoring. computePoints() function.
     host-actions.ts                   getHostNextAction() — pure function for host's single next action.
     quick-fill.ts                     Ranking-based score generation for quick-fill. Deterministic PRNG.
-    __tests__/                        Test files (180+ tests total).
+    consensus.ts                      Champion votes, group winner consensus, boldest picks, pick splits.
+    leaderboard.ts                    computeLeaderboard(), computeMovement(), getPreviousBatch(). Shared-rank logic.
+    __tests__/                        Test files (225+ tests total).
 
   supabase/
     client.ts                         Browser-side Supabase client (anon key).
@@ -303,6 +306,21 @@ Group predictions use `home_score` + `away_score`. Knockout predictions use `win
 
 `match_id = 0` is a sentinel for the champion bonus row (10 points if the player correctly predicted the tournament winner).
 
+#### leaderboard_snapshots
+
+| Column | Type | Constraints | Default |
+|--------|------|-------------|---------|
+| id | UUID | PK | gen_random_uuid() |
+| game_id | UUID | FK → games(id) ON DELETE CASCADE | — |
+| batch | TEXT | NOT NULL | — |
+| player_id | UUID | FK → players(id) ON DELETE CASCADE | — |
+| rank | INTEGER | NOT NULL | — |
+| points | INTEGER | NOT NULL | 0 |
+| created_at | TIMESTAMPTZ | | now() |
+| | | UNIQUE(game_id, batch, player_id) | |
+
+Written after each result batch is scored. `batch` is a `RoundKey` string (`group_md1`, `group_md2`, etc.). Used by `computeMovement()` to show rank change arrows on the leaderboard.
+
 ### Relationships
 
 ```
@@ -311,8 +329,10 @@ games 1──* players     (game_id FK, CASCADE delete)
 games 1──* predictions (game_id FK, CASCADE delete)
 games 1──* official_results (game_id FK, CASCADE delete)
 games 1──* scores      (game_id FK, CASCADE delete)
+games 1──* leaderboard_snapshots (game_id FK, CASCADE delete)
 players 1──* predictions (player_id FK, CASCADE delete)
 players 1──* scores      (player_id FK, CASCADE delete)
+players 1──* leaderboard_snapshots (player_id FK, CASCADE delete)
 ```
 
 ### RLS Policies
@@ -594,14 +614,12 @@ The React compiler flags `setState` calls at the top of `useEffect` bodies in se
 ### Features
 
 - **No real-time auto-save for predictions.** Players must manually save.
-- **No match schedule or deadlines.** No automatic locking based on kick-off.
 - **No notifications.** No alerts for lock/results/leaderboard changes.
 - **No game deletion.** Games persist indefinitely.
 - **No password/private games.** Any player with the code can join.
 - **No prediction receipt.** No summary page after saving.
 - **No dark mode.**
 - **No internationalization.** English only.
-- **No social sharing.** No OG tags or share buttons.
 - **No admin panel.** Requires Supabase dashboard.
 - **No export/import.** No CSV/PDF export.
 
@@ -634,10 +652,10 @@ The React compiler flags `setState` calls at the top of `useEffect` bodies in se
 
 ### Test structure
 
-16 test files in `lib/engine/__tests__/`, 181 tests covering:
+17 test files in `lib/engine/__tests__/`, 225+ tests covering:
 
 - `scoring.test.ts` — Group match scoring tiers (5/3/1/0)
-- `leaderboard.test.ts` — Tiebreaker ordering, shared ranks
+- `leaderboard.test.ts` — Tiebreaker ordering, shared ranks, multi-batch snapshot progression, movement matrix
 - `results-validation.test.ts` — Batch validation, knockout draw detection
 - `player-management.test.ts` — Removal permissions, host transfer, recovery tokens
 - `host-actions.test.ts` — Host action priority chain (14 tests)
@@ -646,12 +664,13 @@ The React compiler flags `setState` calls at the top of `useEffect` bodies in se
 - `best-third-place.test.ts` — Third-place ranking and qualification
 - `knockout-bracket.test.ts` — CSP backtracking for bracket assignment
 - `group-standings.test.ts` — Group table calculation
-- `full-tournament-simulation.test.ts` — End-to-end simulation with 4 players, 104 matches, verified against naive scoring
+- `full-tournament-simulation.test.ts` — End-to-end simulation with 4 players, 104 matches, naive-vs-production scoring. Snapshot rows per batch, cumulative monotonicity, movement direction
 - `api-integration.test.ts` — API-level validation logic: prediction round gating, lock transitions, result entry, auto-transitions, champion bonus
-- `ui-smoke.test.ts` — Static analysis: no bare "Loading...", no deprecated field names, no old design system classes
-- `schedule.test.ts` — Schedule integrity, deadline derivation, chronological order, rejection timing
-- `quick-fill.test.ts` — Ranking-based score generation, bounds, no-overwrite, determinism
-- `onboarding.test.ts` — Onboarding flag logic, trigger conditions (player vs non-player, loaded vs loading)
+- `ui-smoke.test.ts` — Static analysis: no bare "Loading...", no deprecated fields, no old design classes, no hardcoded hex colors
+- `schedule.test.ts` — Schedule integrity, deadline derivation, chronological order, rejection timing, backstop auto-lock
+- `quick-fill.test.ts` — Ranking-based score generation, bounds, no-overwrite, determinism, immutability/purity
+- `onboarding.test.ts` — Onboarding flag logic, trigger conditions, skip-always-present, re-entry mode
+- `consensus.test.ts` — Champion votes, group winner consensus, boldest picks, pick splits, edge cases
 
 ### Running tests
 
