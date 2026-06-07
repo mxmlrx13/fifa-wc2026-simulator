@@ -6,6 +6,10 @@ import {
   getPredictionRoundForMatchId,
   type PredictionRoundKey,
 } from '@/lib/constants'
+import {
+  DEADLINE_ENFORCEMENT_ENABLED,
+  getPredictionRoundDeadline,
+} from '@/lib/data/schedule'
 
 export async function POST(
   request: Request,
@@ -69,6 +73,15 @@ export async function POST(
     if (!openRounds.has('group')) {
       return Response.json({ error: 'Champion pick can only be set while group round is open' }, { status: 403 })
     }
+    // Deadline backstop: reject if group deadline has passed (even if host forgot to lock)
+    if (DEADLINE_ENFORCEMENT_ENABLED) {
+      const groupDeadline = getPredictionRoundDeadline('group')
+      if (new Date() >= groupDeadline) {
+        return Response.json({
+          error: `Champion pick deadline has passed (${groupDeadline.toISOString()})`,
+        }, { status: 400 })
+      }
+    }
     const { error: champError } = await supabase
       .from('players')
       .update({ champion_pick: championPick })
@@ -89,7 +102,10 @@ export async function POST(
   }
 
   // Filter predictions: only accept matches whose prediction round is 'open'
+  // + deadline backstop when enforcement is enabled
   const rejected: number[] = []
+  const deadlineRejectedRounds = new Set<string>()
+  const now = new Date()
   const rows = predictions
     .filter((p) => {
       if (p.matchId < 1 || p.matchId > TOTAL_MATCHES) return false
@@ -98,6 +114,16 @@ export async function POST(
       if (!predRound || !openRounds.has(predRound)) {
         rejected.push(p.matchId)
         return false
+      }
+
+      // Deadline backstop: reject if this round's deadline has passed
+      if (DEADLINE_ENFORCEMENT_ENABLED) {
+        const deadline = getPredictionRoundDeadline(predRound)
+        if (now >= deadline) {
+          deadlineRejectedRounds.add(predRound)
+          rejected.push(p.matchId)
+          return false
+        }
       }
 
       if (p.matchId <= GROUP_MATCH_MAX_ID) return p.homeScore != null && p.awayScore != null
@@ -114,8 +140,11 @@ export async function POST(
     }))
 
   if (rows.length === 0) {
+    const deadlineMsg = deadlineRejectedRounds.size > 0
+      ? ` Deadline passed for: ${[...deadlineRejectedRounds].join(', ')}.`
+      : ''
     return Response.json({
-      error: 'No valid predictions. All submitted matches belong to rounds that are not open.',
+      error: `No valid predictions. All submitted matches belong to rounds that are not open.${deadlineMsg}`,
       rejected,
     }, { status: 400 })
   }

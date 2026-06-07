@@ -25,6 +25,11 @@ import SavePill from '@/components/ui/SavePill'
 import PointsChip from '@/components/ui/PointsChip'
 import Skeleton from '@/components/ui/Skeleton'
 import { useAutoSave } from '@/lib/hooks/use-auto-save'
+import { CountdownBadgeInline } from '@/components/ui/CountdownBadge'
+import {
+  DEADLINE_ENFORCEMENT_ENABLED,
+  getPredictionRoundDeadline,
+} from '@/lib/data/schedule'
 import { cn } from '@/lib/utils'
 
 const groupIds: GroupId[] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
@@ -638,10 +643,16 @@ export default function PredictPage({ params }: { params: Promise<{ code: string
         &larr; Dashboard
       </Link>
 
-      <div className="mb-6">
+      <div className="mb-6 flex items-center gap-3">
         <h1 className="font-[family-name:var(--font-display)] text-[24px] font-bold text-ink">
           Predictions
         </h1>
+        {DEADLINE_ENFORCEMENT_ENABLED && (() => {
+          const openRound = rounds.find((r) => r.status === 'open')
+          if (!openRound) return null
+          const dl = getPredictionRoundDeadline(openRound.roundKey).toISOString()
+          return <CountdownBadgeInline deadline={dl} />
+        })()}
       </div>
 
       <PredictionProvider initialState={initialState ?? undefined}>

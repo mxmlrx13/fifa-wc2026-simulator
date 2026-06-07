@@ -11,6 +11,11 @@ import LeaderboardTable from '@/components/multiplayer/LeaderboardTable'
 import RecoveryLinkDisplay from '@/components/multiplayer/RecoveryLinkDisplay'
 import Modal from '@/components/ui/Modal'
 import Skeleton from '@/components/ui/Skeleton'
+import CountdownBadge from '@/components/ui/CountdownBadge'
+import {
+  DEADLINE_ENFORCEMENT_ENABLED,
+  getPredictionRoundDeadline,
+} from '@/lib/data/schedule'
 import { cn } from '@/lib/utils'
 
 type Phase = 'predicting' | 'live' | 'finished'
@@ -91,17 +96,26 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
           <p className="mt-3 text-[11px] text-muted">Share this code with friends to join</p>
         </div>
 
-        {/* Primary CTA */}
+        {/* Countdown + Primary CTA */}
         {openRound && currentPlayer && (
-          <Link
-            href={`/play/${code}/predict`}
-            className="mb-6 flex items-center justify-center gap-3 rounded-[var(--radius-button)] bg-navy px-6 py-5 text-base font-bold text-paper transition-all hover:brightness-94"
-          >
-            Enter Predictions
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-            </svg>
-          </Link>
+          <div className="mb-6">
+            {DEADLINE_ENFORCEMENT_ENABLED && (
+              <div className="mb-3 flex justify-center">
+                <CountdownBadge
+                  deadline={getPredictionRoundDeadline(openRound.roundKey as PredictionRoundKey).toISOString()}
+                />
+              </div>
+            )}
+            <Link
+              href={`/play/${code}/predict`}
+              className="flex items-center justify-center gap-3 rounded-[var(--radius-button)] bg-navy px-6 py-5 text-base font-bold text-paper transition-all hover:brightness-94"
+            >
+              Enter Predictions
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
+            </Link>
+          </div>
         )}
 
         {/* Players + host lock */}
@@ -201,12 +215,21 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
         )}
 
         {!isHost && openRound && currentPlayer && (
-          <Link
-            href={`/play/${code}/predict`}
-            className="mb-4 flex items-center justify-center gap-3 rounded-[var(--radius-button)] bg-navy px-6 py-4 text-sm font-bold text-paper transition-all hover:brightness-94"
-          >
-            Enter {PREDICTION_ROUND_LABELS[openRound.roundKey as PredictionRoundKey] ?? openRound.roundKey} picks
-          </Link>
+          <div className="mb-4">
+            {DEADLINE_ENFORCEMENT_ENABLED && (
+              <div className="mb-2 flex justify-center">
+                <CountdownBadge
+                  deadline={getPredictionRoundDeadline(openRound.roundKey as PredictionRoundKey).toISOString()}
+                />
+              </div>
+            )}
+            <Link
+              href={`/play/${code}/predict`}
+              className="flex items-center justify-center gap-3 rounded-[var(--radius-button)] bg-navy px-6 py-4 text-sm font-bold text-paper transition-all hover:brightness-94"
+            >
+              Enter {PREDICTION_ROUND_LABELS[openRound.roundKey as PredictionRoundKey] ?? openRound.roundKey} picks
+            </Link>
+          </div>
         )}
 
         {!isHost && !openRound && currentPlayer && (
@@ -311,6 +334,18 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
 
 // ── Sub-components ──
 
+/**
+ * Effective status: if deadlines are enabled and the deadline has passed
+ * for an 'open' round, treat it as 'locked' in the UI (no schema change).
+ */
+function effectiveStatus(roundKey: string, status: string): string {
+  if (!DEADLINE_ENFORCEMENT_ENABLED) return status
+  if (status !== 'open') return status
+  const deadline = getPredictionRoundDeadline(roundKey as PredictionRoundKey)
+  if (new Date() >= deadline) return 'locked'
+  return status
+}
+
 function RoundTimeline({ rounds }: { rounds: { roundKey: string; status: string }[] }) {
   return (
     <div className="rounded-[var(--radius-card)] border border-line bg-card p-4">
@@ -318,21 +353,33 @@ function RoundTimeline({ rounds }: { rounds: { roundKey: string; status: string 
         Tournament
       </h3>
       <div className="flex flex-wrap gap-1.5">
-        {rounds.map((r) => (
-          <span
-            key={r.roundKey}
-            className={cn(
-              'rounded-[var(--radius-pill)] px-2.5 py-1 text-[10px] font-bold transition-all',
-              r.status === 'scored' && 'bg-win-soft text-win-ink',
-              r.status === 'locked' && 'bg-badge-locked-bg text-badge-locked-ink',
-              r.status === 'open' && 'bg-navy text-paper',
-              r.status === 'pending' && 'border border-line bg-transparent text-muted',
-            )}
-          >
-            {PREDICTION_ROUND_LABELS[r.roundKey as PredictionRoundKey] ?? r.roundKey}
-            {r.status === 'scored' && ' \u2713'}
-          </span>
-        ))}
+        {rounds.map((r) => {
+          const eff = effectiveStatus(r.roundKey, r.status)
+          const deadline = getPredictionRoundDeadline(r.roundKey as PredictionRoundKey)
+          const deadlineIso = deadline.toISOString()
+          return (
+            <div key={r.roundKey} className="flex flex-col items-center">
+              <span
+                className={cn(
+                  'rounded-[var(--radius-pill)] px-2.5 py-1 text-[10px] font-bold transition-all',
+                  eff === 'scored' && 'bg-win-soft text-win-ink',
+                  eff === 'locked' && 'bg-badge-locked-bg text-badge-locked-ink',
+                  eff === 'open' && 'bg-navy text-paper',
+                  eff === 'pending' && 'border border-line bg-transparent text-muted',
+                )}
+                title={DEADLINE_ENFORCEMENT_ENABLED ? `Deadline: ${deadlineIso}` : undefined}
+              >
+                {PREDICTION_ROUND_LABELS[r.roundKey as PredictionRoundKey] ?? r.roundKey}
+                {eff === 'scored' && ' \u2713'}
+              </span>
+              {DEADLINE_ENFORCEMENT_ENABLED && (eff === 'open' || eff === 'pending') && (
+                <span className="mt-0.5 hidden text-[8px] text-muted tabular-nums md:block">
+                  {deadline.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                </span>
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
