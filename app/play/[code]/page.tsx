@@ -10,7 +10,7 @@ import LeaderboardTable from '@/components/multiplayer/LeaderboardTable'
 
 export default function GameDashboard({ params }: { params: Promise<{ code: string }> }) {
   const { code } = use(params)
-  const { game, players, currentPlayer, loading, error, refetch } = useGame(code)
+  const { game, players, currentPlayer, rounds, loading, error, refetch } = useGame(code)
 
   if (loading) {
     return (
@@ -33,6 +33,11 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
 
   const isHost = currentPlayer?.isHost ?? false
 
+  // Determine if any round is still open (predictions can be entered)
+  const hasOpenRound = rounds.some((r) => r.status === 'open')
+  // Determine if any round is locked or scored (results are being entered)
+  const hasLockedOrScored = rounds.some((r) => r.status === 'locked' || r.status === 'scored')
+
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
       <Link href="/play" className="mb-4 inline-block text-xs text-gray-500 hover:text-accent">
@@ -50,7 +55,7 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
         <div className="space-y-6">
           <RoundControls
             code={code}
-            predictionsLocked={game.predictions_locked}
+            rounds={rounds}
             isHost={isHost}
             onAction={refetch}
           />
@@ -60,7 +65,7 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
         {/* Center + Right columns */}
         <div className="space-y-6 md:col-span-2">
           {/* Primary action */}
-          {!game.predictions_locked && currentPlayer && (
+          {hasOpenRound && currentPlayer && (
             <Link
               href={`/play/${code}/predict`}
               className="flex items-center justify-center gap-3 rounded-xl bg-accent px-6 py-5 text-base font-bold text-white shadow-lg transition-all hover:brightness-110 animate-pulse-glow"
@@ -74,7 +79,7 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
 
           {/* Secondary actions */}
           <div className="grid gap-3 sm:grid-cols-2">
-            {game.predictions_locked && (
+            {hasLockedOrScored && (
               <Link
                 href={`/play/${code}/compare`}
                 className="glass-card flex items-center justify-center gap-2 px-4 py-4 text-sm font-bold text-neon-blue transition-all hover:bg-neon-blue/10"
@@ -83,7 +88,7 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
               </Link>
             )}
 
-            {game.predictions_locked && isHost && (
+            {hasLockedOrScored && isHost && (
               <Link
                 href={`/play/${code}/results`}
                 className="glass-card flex items-center justify-center gap-2 px-4 py-4 text-sm font-bold text-neon-green transition-all hover:bg-neon-green/10"

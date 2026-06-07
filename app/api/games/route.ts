@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { GAME_CODE_LENGTH, CODE_GENERATION_RETRIES } from '@/lib/constants'
+import { GAME_CODE_LENGTH, CODE_GENERATION_RETRIES, PREDICTION_ROUNDS } from '@/lib/constants'
 
 function generateCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -62,6 +62,20 @@ export async function POST(request: Request) {
 
   if (playerError) {
     return Response.json({ error: 'Failed to create host player' }, { status: 500 })
+  }
+
+  // Seed game_rounds: 'group' = 'open', rest = 'pending'
+  const roundRows = PREDICTION_ROUNDS.map((roundKey) => ({
+    game_id: game.id,
+    round_key: roundKey,
+    status: roundKey === 'group' ? 'open' : 'pending',
+    opened_at: roundKey === 'group' ? new Date().toISOString() : null,
+  }))
+
+  const { error: roundsError } = await supabase.from('game_rounds').insert(roundRows)
+
+  if (roundsError) {
+    return Response.json({ error: 'Failed to create game rounds' }, { status: 500 })
   }
 
   return Response.json({ code: game.code, gameId: game.id })

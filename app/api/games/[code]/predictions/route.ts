@@ -1,6 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { getRoundForMatchId } from '@/lib/engine/rounds'
-import { GROUP_MATCH_MAX_ID, TOTAL_MATCHES } from '@/lib/constants'
+import {
+  GROUP_MATCH_MAX_ID,
+  TOTAL_MATCHES,
+  getPredictionRoundForMatchId,
+  type PredictionRoundKey,
+} from '@/lib/constants'
 
 export async function POST(
   request: Request,
@@ -16,16 +21,12 @@ export async function POST(
 
   const { data: game } = await supabase
     .from('games')
-    .select('*')
+    .select('id')
     .eq('code', code.toUpperCase())
     .single()
 
   if (!game) {
     return Response.json({ error: 'Game not found' }, { status: 404 })
-  }
-
-  if (game.predictions_locked) {
-    return Response.json({ error: 'Predictions are locked' }, { status: 403 })
   }
 
   const { data: player } = await supabase
@@ -39,22 +40,66 @@ export async function POST(
     return Response.json({ error: 'You are not in this game' }, { status: 403 })
   }
 
-  const { predictions } = await request.json() as {
-    predictions: Array<{
+  // Fetch open rounds for this game
+  const { data: gameRounds } = await supabase
+    .from('game_rounds')
+    .select('round_key, status')
+    .eq('game_id', game.id)
+
+  const openRounds = new Set(
+    (gameRounds ?? [])
+      .filter((r) => r.status === 'open')
+      .map((r) => r.round_key),
+  )
+
+  const body = await request.json()
+  const { predictions, championPick } = body as {
+    predictions?: Array<{
       matchId: number
       homeScore?: number
       awayScore?: number
       winnerId?: string
     }>
+    championPick?: string
   }
 
-  if (!predictions || !Array.isArray(predictions)) {
+  // Save champion pick if provided
+  if (championPick !== undefined) {
+    // Champion pick only allowed when 'group' round is open
+    if (!openRounds.has('group')) {
+      return Response.json({ error: 'Champion pick can only be set while group round is open' }, { status: 403 })
+    }
+    const { error: champError } = await supabase
+      .from('players')
+      .update({ champion_pick: championPick })
+      .eq('id', player.id)
+
+    if (champError) {
+      return Response.json({ error: 'Failed to save champion pick' }, { status: 500 })
+    }
+
+    // If no predictions, just return
+    if (!predictions || predictions.length === 0) {
+      return Response.json({ saved: 0, championPick })
+    }
+  }
+
+  if (!predictions || !Array.isArray(predictions) || predictions.length === 0) {
     return Response.json({ error: 'predictions array required' }, { status: 400 })
   }
 
+  // Filter predictions: only accept matches whose prediction round is 'open'
+  const rejected: number[] = []
   const rows = predictions
     .filter((p) => {
       if (p.matchId < 1 || p.matchId > TOTAL_MATCHES) return false
+
+      const predRound = getPredictionRoundForMatchId(p.matchId)
+      if (!predRound || !openRounds.has(predRound)) {
+        rejected.push(p.matchId)
+        return false
+      }
+
       if (p.matchId <= GROUP_MATCH_MAX_ID) return p.homeScore != null && p.awayScore != null
       return p.winnerId != null
     })
@@ -69,7 +114,10 @@ export async function POST(
     }))
 
   if (rows.length === 0) {
-    return Response.json({ error: 'No valid predictions' }, { status: 400 })
+    return Response.json({
+      error: 'No valid predictions. All submitted matches belong to rounds that are not open.',
+      rejected,
+    }, { status: 400 })
   }
 
   const { error } = await supabase
@@ -80,7 +128,7 @@ export async function POST(
     return Response.json({ error: 'Failed to save predictions' }, { status: 500 })
   }
 
-  return Response.json({ saved: rows.length })
+  return Response.json({ saved: rows.length, rejected })
 }
 
 export async function GET(
@@ -92,7 +140,7 @@ export async function GET(
 
   const { data: game } = await supabase
     .from('games')
-    .select('*')
+    .select('id')
     .eq('code', code.toUpperCase())
     .single()
 
@@ -101,7 +149,7 @@ export async function GET(
   }
 
   const url = new URL(request.url)
-  const round = url.searchParams.get('round')
+  const roundParam = url.searchParams.get('round') as PredictionRoundKey | null
 
   const { data: { user } } = await supabase.auth.getUser()
   const { data: currentPlayer } = await supabase
@@ -111,22 +159,50 @@ export async function GET(
     .eq('auth_id', user?.id ?? '')
     .single()
 
+  // Fetch game rounds to determine visibility
+  const { data: gameRounds } = await supabase
+    .from('game_rounds')
+    .select('round_key, status')
+    .eq('game_id', game.id)
+
+  const roundStatusMap = new Map(
+    (gameRounds ?? []).map((r) => [r.round_key, r.status]),
+  )
+
+  // Locked/scored rounds are visible to all players
+  const visibleRounds = new Set(
+    (gameRounds ?? [])
+      .filter((r) => r.status === 'locked' || r.status === 'scored')
+      .map((r) => r.round_key),
+  )
+
   let query = supabase
     .from('predictions')
     .select('player_id, match_id, home_score, away_score, winner_id')
     .eq('game_id', game.id)
 
-  if (round) {
-    query = query.eq('round', round)
+  if (roundParam) {
+    // Filter by prediction round's match range
+    const { PREDICTION_ROUND_RANGES } = await import('@/lib/constants')
+    const range = PREDICTION_ROUND_RANGES[roundParam]
+    if (range) {
+      query = query.gte('match_id', range[0]).lte('match_id', range[1])
+    }
   }
 
   const { data: predictions } = await query
 
-  // If predictions not locked, only return current player's predictions
-  if (!game.predictions_locked) {
-    const own = predictions?.filter((p) => p.player_id === currentPlayer?.id) ?? []
-    return Response.json({ predictions: own, locked: false })
-  }
+  // For each prediction, decide visibility:
+  // - Own predictions: always visible
+  // - Others' predictions: only if that prediction's round is locked or scored
+  const filtered = (predictions ?? []).filter((p) => {
+    if (p.player_id === currentPlayer?.id) return true
+    const predRound = getPredictionRoundForMatchId(p.match_id)
+    return predRound ? visibleRounds.has(predRound) : false
+  })
 
-  return Response.json({ predictions: predictions ?? [], locked: true })
+  return Response.json({
+    predictions: filtered,
+    roundStatuses: Object.fromEntries(roundStatusMap),
+  })
 }

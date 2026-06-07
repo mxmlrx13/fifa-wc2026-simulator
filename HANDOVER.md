@@ -101,12 +101,13 @@ app/
   api/games/
     route.ts                          POST: create game. Generates 6-char code.
     [code]/
-      route.ts                        GET: game details + players + current player.
+      route.ts                        GET: game details + players + rounds + current player.
       join/route.ts                   POST: add player to game.
-      predictions/route.ts            GET: fetch predictions. POST: save predictions.
-      results/route.ts                POST: enter results + compute scores.
-      round/route.ts                  PATCH: lock predictions, set result batch.
-      leaderboard/route.ts            GET: aggregated, ranked leaderboard.
+      predictions/route.ts            GET: fetch predictions (round-based visibility). POST: save predictions (round-based validation).
+      results/route.ts                POST: enter results + compute scores + auto round transitions + champion bonus.
+      round/route.ts                  PATCH: lock_round / unlock_round per prediction round.
+      bracket/route.ts                GET: compute actual bracket from official results.
+      leaderboard/route.ts            GET: aggregated, ranked leaderboard (includes champion bonus).
 
 components/
   layout/Navbar.tsx                   Top nav bar. Links to Groups, Standings, Knockout, Play.
@@ -130,7 +131,7 @@ components/
     JoinGameForm.tsx                  Inputs: 6-char code, display name. POST to /api/games/[code]/join.
     GameCodeDisplay.tsx               Large centered code display with copy button.
     PlayerList.tsx                    Vertical player list. Host badge. Current user highlight.
-    RoundControls.tsx                 OPEN/LOCKED badge. Lock button (host only).
+    RoundControls.tsx                 Per-round status badges. Lock/unlock buttons (host only).
     LeaderboardTable.tsx              Ranked table. Compact (top 5) or full mode. Realtime.
     PredictionComparison.tsx          Match × player table. Scores for groups, winner for knockout.
     PredictionProvider.tsx            Local TournamentContext wrapper for multiplayer predictions.
@@ -191,12 +192,27 @@ Orphaned files in the repo root (not part of the app): `proxy.ts`, `deno.lock`, 
 | id | UUID | PK | gen_random_uuid() |
 | code | TEXT | UNIQUE, NOT NULL | — |
 | name | TEXT | NOT NULL | — |
-| current_round | TEXT | NOT NULL | 'group_md1' |
-| round_locked | BOOLEAN | | false |
-| predictions_locked | BOOLEAN | | false |
 | created_at | TIMESTAMPTZ | | now() |
 
-`round_locked` is a legacy column from a previous design. It's not used by the current code. `predictions_locked` is the active flag.
+Simplified table — round state is tracked in `game_rounds`.
+
+#### game_rounds
+
+| Column | Type | Constraints | Default |
+|--------|------|-------------|---------|
+| id | UUID | PK | gen_random_uuid() |
+| game_id | UUID | FK → games(id) ON DELETE CASCADE | — |
+| round_key | TEXT | NOT NULL | — |
+| status | TEXT | NOT NULL | 'pending' |
+| opened_at | TIMESTAMPTZ | NULLABLE | — |
+| locked_at | TIMESTAMPTZ | NULLABLE | — |
+| scored_at | TIMESTAMPTZ | NULLABLE | — |
+| | | UNIQUE(game_id, round_key) | |
+
+`round_key` is one of: `group`, `r32`, `r16`, `qf`, `sf`, `final`.
+`status` transitions: `pending` → `open` → `locked` → `scored`.
+
+When a game is created, 6 rows are seeded: `group` starts as `open`, the rest as `pending`. When all results for a round are entered, the round auto-transitions to `scored` and the next round opens.
 
 #### players
 
@@ -207,8 +223,11 @@ Orphaned files in the repo root (not part of the app): `proxy.ts`, `deno.lock`, 
 | game_id | UUID | FK → games(id) ON DELETE CASCADE | — |
 | display_name | TEXT | NOT NULL | — |
 | is_host | BOOLEAN | | false |
+| champion_pick | TEXT | NULLABLE | — |
 | created_at | TIMESTAMPTZ | | now() |
 | | | UNIQUE(game_id, display_name) | |
+
+`champion_pick` stores the player's predicted tournament winner (team ID). Can only be set while the `group` round is open.
 
 #### predictions
 
@@ -255,11 +274,16 @@ Group predictions use `home_score` + `away_score`. Knockout predictions use `win
 | prediction_away | INTEGER | NULLABLE | — |
 | actual_home | INTEGER | NULLABLE | — |
 | actual_away | INTEGER | NULLABLE | — |
+| predicted_winner_id | TEXT | NULLABLE | — |
+| actual_winner_id | TEXT | NULLABLE | — |
 | | | UNIQUE(player_id, game_id, match_id) | |
+
+`match_id = 0` is a sentinel for the champion bonus row (10 points if the player correctly predicted the tournament winner).
 
 ### Relationships
 
 ```
+games 1──* game_rounds (game_id FK, CASCADE delete)
 games 1──* players     (game_id FK, CASCADE delete)
 games 1──* predictions (game_id FK, CASCADE delete)
 games 1──* official_results (game_id FK, CASCADE delete)
@@ -279,15 +303,16 @@ CREATE POLICY "Anyone can insert ..." ON <table> FOR INSERT WITH CHECK (true);
 CREATE POLICY "Anyone can update ..." ON <table> FOR UPDATE USING (true);
 ```
 
-Access control is enforced in the API routes (checking `is_host`, `predictions_locked`, `auth_id`), not at the database level. This means a user with the anon key could bypass the API and write directly to Supabase. See section 7 for details.
+Access control is enforced in the API routes (checking `is_host`, round status, `auth_id`), not at the database level. This means a user with the anon key could bypass the API and write directly to Supabase. See section 7 for details.
 
 ### Realtime
 
-Enabled on `games` and `scores` tables:
+Enabled on `games`, `scores`, and `game_rounds` tables:
 
 ```sql
 ALTER PUBLICATION supabase_realtime ADD TABLE games;
 ALTER PUBLICATION supabase_realtime ADD TABLE scores;
+ALTER PUBLICATION supabase_realtime ADD TABLE game_rounds;
 ```
 
 ---
@@ -318,41 +343,46 @@ Edge case: if `predictedHome` or `predictedAway` is null, the player gets 0 poin
 
 ### Knockout Matches (match IDs 73–104)
 
-Not handled by `computePoints()`. Scoring is inline in `app/api/games/[code]/results/route.ts`:
+Escalating points per round, defined in `lib/constants.ts`:
 
-```typescript
-const points = (predictedWinnerId && actualWinnerId && predictedWinnerId === actualWinnerId) ? 3 : 0
-```
+| Round | Match IDs | Points per correct winner |
+|-------|-----------|--------------------------|
+| Round of 32 | 73–88 | 3 |
+| Round of 16 | 89–96 | 4 |
+| Quarter-finals | 97–100 | 5 |
+| Semi-finals | 101–102 | 6 |
+| Third-place match | 103 | 6 |
+| Final | 104 | 8 |
 
-| Condition | Points |
-|-----------|--------|
-| Player predicted correct winner | 3 |
-| Player predicted wrong winner | 0 |
-| Player didn't predict this match | 0 |
-| No actual winner recorded | 0 |
+Implemented via `getKnockoutPointsForMatch(matchId)` which checks `MATCH_POINT_OVERRIDES` first, then falls back to `KNOCKOUT_POINTS[round]`.
 
 No partial credit. No bonus for predicting the correct score of a knockout match (scores aren't predicted for knockout matches — only the winner).
 
-**Knockout draw validation:** The results API rejects (400) any knockout batch submission where a match has `homeScore === awayScore` and no `winnerId`. The response includes `{ error: "...", matchIds: [73, 75] }` listing the offending match IDs. The results page UI also disables the submit button while any tied knockout match has no winner selected, and shows an inline red prompt on each offending match row.
+**Knockout draw validation:** The results API rejects (400) any knockout batch submission where a match has `homeScore === awayScore` and no `winnerId`. The response includes `{ error: "...", matchIds: [73, 75] }` listing the offending match IDs.
+
+### Champion Bonus
+
+10 points for correctly predicting the tournament winner. The champion pick is stored in `players.champion_pick` and can be set while the `group` round is open. When match 104 (the final) result is entered, the system awards the bonus by inserting a score row with `match_id = 0` (sentinel `CHAMPION_BONUS_MATCH_ID`).
 
 ### Leaderboard Aggregation
 
 In `app/api/games/[code]/leaderboard/route.ts`:
 
-1. Query all scores for the game
+1. Query all scores for the game (including `match_id = 0` champion bonus rows)
 2. Group by player_id
 3. Sum `points` for `totalPoints`
-4. Count rows where `points === 5` for `exactScores`
-5. Count rows where `points > 0` for `correctResults`
+4. For `match_id = 0`: track as `championBonus` (not counted in exactScores/correctResults)
+5. For other matches: count rows where `points === 5` for `exactScores`, `points > 0` for `correctResults`
 6. Sort by: `totalPoints` desc → `exactScores` desc → `correctResults` desc
 7. Assign shared ranks: players tied on all three criteria get the same rank number (e.g., 1, 2, 2, 4 — rank 3 is skipped)
-8. Each entry in the response includes a `rank` field
+8. Each entry includes `rank` and `championBonus` fields
 
 ### Theoretical Maximums
 
 - 72 group matches × 5 pts = 360
-- 32 knockout matches × 3 pts = 96
-- Total maximum: 456
+- R32: 16 × 3 = 48, R16: 8 × 4 = 32, QF: 4 × 5 = 20, SF: 2 × 6 = 12, 3rd: 6, Final: 8 → 126
+- Champion bonus: 10
+- Total maximum: 496
 
 ---
 
@@ -393,7 +423,7 @@ POST `/api/games/[code]/join` with `{ displayName }`.
 The `is_host` flag on the `players` table determines host status. Exactly one player per game is the host (the creator).
 
 Host-only actions (enforced in API routes by querying `is_host`):
-- Lock predictions (PATCH `/api/games/[code]/round` with `action: 'lock'`)
+- Lock/unlock prediction rounds (PATCH `/api/games/[code]/round` with `action: 'lock_round'` or `'unlock_round'`)
 - Enter official results (POST `/api/games/[code]/results`)
 
 The host is determined by checking `players.is_host = true AND players.auth_id = currentUser.id AND players.game_id = game.id`.
@@ -438,19 +468,23 @@ No enforced limit. The `players` table has no cap on rows per `game_id`. The UI 
 1. Verify caller is host
 2. Read `results` array and `batch` from request body
 3. Validate `batch` is a known round key — if invalid, return 400 with error message
-4. Get valid match IDs for the batch via `getMatchIdsForRound(batch)`
-5. Filter results to only include match IDs in the valid set
-6. Determine if batch is knockout (`!batch.startsWith('group_md')`)
-7. For knockout batches: check for tied matches without `winnerId` — if any, return 400 with the list of offending match IDs
-8. For knockout results with explicit winner: use `winnerId`; for decisive scores: infer winner from score
-9. Upsert into `official_results` table (on conflict: `game_id, match_id`)
-10. Fetch all predictions from `predictions` table for the batch's match IDs
-11. For each prediction:
-   - **Group match**: call `computePoints(predicted, actual)` → 0/1/3/5 points
-   - **Knockout match**: compare `prediction.winner_id` to `result.winner_id` → 3 or 0 points
-   - If prediction has null scores (player didn't fill in), → 0 points
-12. Upsert into `scores` table (on conflict: `player_id, game_id, match_id`)
-13. Return `{ resultsEntered: N, scoresComputed: M }`
+4. **Round status check**: verify the prediction round for this batch is `locked` or `scored` — otherwise return 400
+5. Get valid match IDs for the batch via `getMatchIdsForRound(batch)`
+6. Filter results to only include match IDs in the valid set
+7. Determine if batch is knockout (`!batch.startsWith('group_md')`)
+8. For knockout batches: check for tied matches without `winnerId` — if any, return 400 with the list of offending match IDs
+9. For knockout results with explicit winner: use `winnerId`; for decisive scores: infer winner from score
+10. Upsert into `official_results` table (on conflict: `game_id, match_id`)
+11. Fetch all predictions from `predictions` table for the batch's match IDs
+12. For each prediction:
+    - **Group match**: call `computePoints(predicted, actual)` → 0/1/3/5 points
+    - **Knockout match**: compare `prediction.winner_id` to `result.winner_id` → escalating points (3/4/5/6/8) via `getKnockoutPointsForMatch(matchId)`, or 0 if wrong
+    - If prediction has null scores (player didn't fill in), → 0 points
+    - Score rows include `predicted_winner_id` and `actual_winner_id` for knockout matches
+13. Upsert into `scores` table (on conflict: `player_id, game_id, match_id`)
+14. **Champion bonus**: if match 104 (final) was in this batch, look up all players' `champion_pick` and award 10 points (or 0) via a `match_id = 0` score row
+15. **Automatic round transition**: if all matches in the prediction round now have results, mark the round as `scored` and open the next `pending` round
+16. Return `{ resultsEntered: N, scoresComputed: M, championBonusAwarded: K }`
 
 ### What triggers leaderboard updates
 
@@ -472,7 +506,7 @@ Results can be re-submitted. The upsert on `official_results` and `scores` overw
 
 **Code generation race condition.** Two simultaneous game creation requests could generate the same 6-character code. The check-then-insert pattern is not atomic. With 36^6 = ~2.2 billion possible codes, the probability is negligible, but the code only retries `CODE_GENERATION_RETRIES` (5) times and doesn't catch the unique constraint violation.
 
-**RLS policies are fully open.** All tables allow all operations for all users. A user who knows the Supabase URL and anon key (both are in client-side code) can directly insert/update/delete any row in any table. They could modify other players' predictions, change game settings, or insert fake scores. Access control exists only at the API route level.
+**RLS policies are fully open.** All tables allow all operations for all users. A user who knows the Supabase URL and anon key (both are in client-side code) can directly insert/update/delete any row in any table. They could modify other players' predictions, change round statuses, or insert fake scores. Access control exists only at the API route level.
 
 **Hydrate-predictions doesn't validate match IDs.** The `hydratePredictions()` function accepts any array of prediction rows and maps them onto the tournament state. Out-of-bounds match IDs (e.g., 105, -1) are silently dropped for group matches but could populate invalid entries in `knockoutPicks`.
 
@@ -496,9 +530,7 @@ Results can be re-submitted. The upsert on `official_results` and `scores` overw
 
 **Context shadowing pattern.** The multiplayer predict page works by rendering a `PredictionProvider` that creates a new `TournamentContext.Provider`, shadowing the global one from `layout.tsx`. This means the same components work in both solo and multiplayer mode without changes. It's clever but non-obvious — someone editing `GroupCard` won't immediately know it can receive state from two different providers.
 
-**`round_locked` column is dead.** The `games` table has both `round_locked` and `predictions_locked`. Only `predictions_locked` is used. `round_locked` is from a previous design where predictions were locked per round. It's still in the schema and default value is set, but no code reads or writes it.
-
-**`current_round` column is partially dead.** The `set_result_batch` action writes to `current_round`, but no code currently reads it to affect behavior. It was meant to track which batch the host is working on, but the results page manages batch selection entirely in client state.
+**Round transition timing.** When all results for a prediction round are entered, the round auto-transitions to `scored` and the next round opens. This happens in the results POST handler. If the host enters results across multiple requests for the same batch, the transition only fires when the final result completes the round. The transition uses `eq('status', 'pending')` to avoid accidentally reopening a round that was already open/locked.
 
 ---
 
@@ -506,8 +538,7 @@ Results can be re-submitted. The upsert on `official_results` and `scores` overw
 
 ### Features
 
-- **No real-time auto-save for predictions.** Players must manually click "Save All Predictions." If they close the tab, unsaved work is lost.
-- **No per-round prediction locking.** It's all-or-nothing. Once locked, no predictions can be changed for any match, even future ones.
+- **No real-time auto-save for predictions.** Players must manually click save. If they close the tab, unsaved work is lost.
 - **No match schedule or deadlines.** No dates, times, or automatic locking based on kick-off.
 - **No notifications.** Players aren't notified when predictions are locked, results are entered, or the leaderboard changes.
 - **No game deletion.** Games persist indefinitely. No cleanup mechanism.
@@ -550,4 +581,4 @@ Results can be re-submitted. The upsert on `official_results` and `scores` overw
 
 **Expected group size:** Designed for 2–20 players. No hard limit, but the comparison table (players as columns) breaks layout beyond ~10 players on desktop. Leaderboard scales fine.
 
-**Knockout predictions:** Made upfront, in a single session, before any real matches are played. Players predict all 104 matches at once (group scores → standings auto-compute → bracket auto-populates → pick knockout winners). This is not round-by-round. Once the host locks predictions, nothing can be changed.
+**Prediction model:** Round-by-round. Group predictions are entered upfront (group round starts as `open`). Once the host locks the group round and results are entered, the system auto-transitions to the next round. Knockout rounds are predicted on the real bracket (derived from actual results). Each round follows: `pending` → `open` (players predict) → `locked` (host locks) → `scored` (all results entered, auto-transition opens next round). Champion pick is set during the group round.

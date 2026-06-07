@@ -1,14 +1,22 @@
--- Multiplayer Prediction Game — Supabase Schema
--- Run this in Supabase SQL Editor to create all required tables.
+-- Multiplayer Prediction Game — Supabase Schema (canonical)
+-- Run this in Supabase SQL Editor to create all required tables from scratch.
 
 CREATE TABLE games (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   code TEXT NOT NULL UNIQUE,
   name TEXT NOT NULL,
-  current_round TEXT NOT NULL DEFAULT 'group_md1',
-  round_locked BOOLEAN DEFAULT FALSE,
-  predictions_locked BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE game_rounds (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  game_id UUID NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+  round_key TEXT NOT NULL,        -- 'group','r32','r16','qf','sf','final'
+  status TEXT NOT NULL DEFAULT 'pending',  -- 'pending' | 'open' | 'locked' | 'scored'
+  opened_at TIMESTAMPTZ NULL,
+  locked_at TIMESTAMPTZ NULL,
+  scored_at TIMESTAMPTZ NULL,
+  UNIQUE(game_id, round_key)
 );
 
 CREATE TABLE players (
@@ -17,6 +25,7 @@ CREATE TABLE players (
   game_id UUID NOT NULL REFERENCES games(id) ON DELETE CASCADE,
   display_name TEXT NOT NULL,
   is_host BOOLEAN DEFAULT FALSE,
+  champion_pick TEXT NULL,
   created_at TIMESTAMPTZ DEFAULT now(),
   UNIQUE(game_id, display_name)
 );
@@ -55,47 +64,43 @@ CREATE TABLE scores (
   prediction_away INTEGER,
   actual_home INTEGER,
   actual_away INTEGER,
+  predicted_winner_id TEXT,
+  actual_winner_id TEXT,
   UNIQUE(player_id, game_id, match_id)
 );
 
--- Enable Realtime on relevant tables
+-- Enable Realtime
 ALTER PUBLICATION supabase_realtime ADD TABLE games;
 ALTER PUBLICATION supabase_realtime ADD TABLE scores;
+ALTER PUBLICATION supabase_realtime ADD TABLE game_rounds;
 
 -- Row Level Security
 ALTER TABLE games ENABLE ROW LEVEL SECURITY;
+ALTER TABLE game_rounds ENABLE ROW LEVEL SECURITY;
 ALTER TABLE players ENABLE ROW LEVEL SECURITY;
 ALTER TABLE predictions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE official_results ENABLE ROW LEVEL SECURITY;
 ALTER TABLE scores ENABLE ROW LEVEL SECURITY;
 
--- Games: anyone can read, anyone can insert
 CREATE POLICY "Anyone can read games" ON games FOR SELECT USING (true);
 CREATE POLICY "Anyone can create games" ON games FOR INSERT WITH CHECK (true);
 CREATE POLICY "Anyone can update games" ON games FOR UPDATE USING (true);
 
--- Players: anyone can read, authenticated can insert
+CREATE POLICY "Anyone can read game_rounds" ON game_rounds FOR SELECT USING (true);
+CREATE POLICY "Anyone can insert game_rounds" ON game_rounds FOR INSERT WITH CHECK (true);
+CREATE POLICY "Anyone can update game_rounds" ON game_rounds FOR UPDATE USING (true);
+
 CREATE POLICY "Anyone can read players" ON players FOR SELECT USING (true);
 CREATE POLICY "Anyone can insert players" ON players FOR INSERT WITH CHECK (true);
+CREATE POLICY "Anyone can update players" ON players FOR UPDATE USING (true);
 
--- Predictions: players can manage their own
 CREATE POLICY "Anyone can read predictions" ON predictions FOR SELECT USING (true);
 CREATE POLICY "Anyone can insert predictions" ON predictions FOR INSERT WITH CHECK (true);
 CREATE POLICY "Anyone can update predictions" ON predictions FOR UPDATE USING (true);
 
--- Official results: anyone can read, host inserts (enforced at API level)
 CREATE POLICY "Anyone can read results" ON official_results FOR SELECT USING (true);
 CREATE POLICY "Anyone can insert results" ON official_results FOR INSERT WITH CHECK (true);
 
--- Scores: anyone can read, system inserts
 CREATE POLICY "Anyone can read scores" ON scores FOR SELECT USING (true);
 CREATE POLICY "Anyone can insert scores" ON scores FOR INSERT WITH CHECK (true);
 CREATE POLICY "Anyone can update scores" ON scores FOR UPDATE USING (true);
-
--- =============================================================================
--- Migration for existing databases (run these ALTER statements separately):
--- =============================================================================
--- ALTER TABLE games ADD COLUMN predictions_locked BOOLEAN DEFAULT FALSE;
--- ALTER TABLE predictions ADD COLUMN winner_id TEXT;
--- ALTER TABLE predictions ALTER COLUMN round DROP NOT NULL;
--- ALTER TABLE official_results ADD COLUMN winner_id TEXT;

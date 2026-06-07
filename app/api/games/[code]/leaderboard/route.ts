@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { CHAMPION_BONUS_MATCH_ID } from '@/lib/constants'
 
 export async function GET(
   _request: Request,
@@ -28,25 +29,29 @@ export async function GET(
     .eq('game_id', game.id)
 
   // Aggregate scores per player
-  const playerScores = new Map<string, { total: number; exact: number; correct: number; matches: number }>()
+  const playerScores = new Map<string, { total: number; exact: number; correct: number; matches: number; championBonus: number }>()
 
   for (const p of players ?? []) {
-    playerScores.set(p.id, { total: 0, exact: 0, correct: 0, matches: 0 })
+    playerScores.set(p.id, { total: 0, exact: 0, correct: 0, matches: 0, championBonus: 0 })
   }
 
   for (const s of scores ?? []) {
     const current = playerScores.get(s.player_id)
     if (current) {
       current.total += s.points
-      current.matches++
-      if (s.points === 5) current.exact++
-      if (s.points > 0) current.correct++
+      if (s.match_id === CHAMPION_BONUS_MATCH_ID) {
+        current.championBonus = s.points
+      } else {
+        current.matches++
+        if (s.points === 5) current.exact++
+        if (s.points > 0) current.correct++
+      }
     }
   }
 
   const sorted = (players ?? [])
     .map((p) => {
-      const stats = playerScores.get(p.id) ?? { total: 0, exact: 0, correct: 0, matches: 0 }
+      const stats = playerScores.get(p.id) ?? { total: 0, exact: 0, correct: 0, matches: 0, championBonus: 0 }
       return {
         playerId: p.id,
         displayName: p.display_name,
@@ -55,6 +60,7 @@ export async function GET(
         exactScores: stats.exact,
         correctResults: stats.correct,
         matchesScored: stats.matches,
+        championBonus: stats.championBonus,
       }
     })
     .sort((a, b) =>

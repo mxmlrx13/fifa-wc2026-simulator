@@ -2,26 +2,31 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from './client'
+import type { PredictionRoundKey } from '@/lib/constants'
 
 interface Player {
   id: string
   displayName: string
   isHost: boolean
+  championPick: string | null
+}
+
+export interface GameRound {
+  roundKey: PredictionRoundKey
+  status: 'pending' | 'open' | 'locked' | 'scored'
 }
 
 interface Game {
   id: string
   code: string
   name: string
-  current_round: string
-  round_locked: boolean
-  predictions_locked: boolean
 }
 
 interface GameState {
   game: Game | null
   players: Player[]
   currentPlayer: Player | null
+  rounds: GameRound[]
   loading: boolean
   error: string | null
 }
@@ -31,6 +36,7 @@ export function useGame(code: string) {
     game: null,
     players: [],
     currentPlayer: null,
+    rounds: [],
     loading: true,
     error: null,
   })
@@ -47,6 +53,7 @@ export function useGame(code: string) {
         game: data.game,
         players: data.players,
         currentPlayer: data.currentPlayer,
+        rounds: data.rounds ?? [],
         loading: false,
         error: null,
       })
@@ -64,26 +71,24 @@ export function useGame(code: string) {
     fetchGame()
   }, [fetchGame])
 
-  // Subscribe to game changes (predictions lock, round updates)
+  // Subscribe to game_rounds changes
   useEffect(() => {
     if (!state.game?.id) return
 
     const supabase = createClient()
     const channel = supabase
-      .channel(`game-${state.game.id}`)
+      .channel(`game-rounds-${state.game.id}`)
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE',
+          event: '*',
           schema: 'public',
-          table: 'games',
-          filter: `id=eq.${state.game.id}`,
+          table: 'game_rounds',
+          filter: `game_id=eq.${state.game.id}`,
         },
-        (payload) => {
-          setState((s) => ({
-            ...s,
-            game: s.game ? { ...s.game, ...payload.new } : null,
-          }))
+        () => {
+          // Re-fetch full state when rounds change
+          fetchGame()
         },
       )
       .subscribe()
@@ -91,7 +96,7 @@ export function useGame(code: string) {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [state.game?.id])
+  }, [state.game?.id, fetchGame])
 
   return { ...state, refetch: fetchGame }
 }

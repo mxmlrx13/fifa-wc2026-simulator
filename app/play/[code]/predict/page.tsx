@@ -193,7 +193,7 @@ function PredictInner({ code }: { code: string }) {
 
 export default function PredictPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = use(params)
-  const { game, currentPlayer, loading } = useGame(code)
+  const { game, currentPlayer, rounds, loading } = useGame(code)
   const [initialState, setInitialState] = useState<TournamentState | null>(null)
   const [loadingPredictions, setLoadingPredictions] = useState(true)
 
@@ -226,10 +226,11 @@ export default function PredictPage({ params }: { params: Promise<{ code: string
     )
   }
 
-  if (game.predictions_locked) {
+  const hasOpenRound = rounds.some((r) => r.status === 'open')
+  if (!hasOpenRound) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
-        <p className="text-sm text-gray-500">Predictions are locked.</p>
+        <p className="text-sm text-gray-500">No prediction rounds are currently open.</p>
         <Link href={`/play/${code}`} className="text-xs text-accent hover:underline">Back to dashboard</Link>
       </div>
     )
