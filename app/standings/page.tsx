@@ -14,14 +14,14 @@ export default function StandingsPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 animate-fadeIn">
-      <h1 className="mb-2 text-2xl font-bold tracking-tight text-gray-900">
-        STANDINGS <span className="text-accent">& QUALIFICATION</span>
+      <h1 className="mb-2 font-[family-name:var(--font-display)] text-[24px] font-bold tracking-[-0.01em] text-ink">
+        Standings & Qualification
       </h1>
 
       {!allGroupsComplete && (
-        <div className="mb-6 glass-card rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-700">
+        <div className="mb-6 rounded-[var(--radius-card)] border border-third-ink/20 bg-third-soft px-4 py-3 text-sm text-third-ink">
           Complete all group matches to see final standings and qualification results.
-          <Link href="/groups" className="ml-2 font-semibold text-accent hover:underline">
+          <Link href="/groups" className="ml-2 font-semibold text-navy hover:underline">
             Go to Groups
           </Link>
         </div>
@@ -29,13 +29,13 @@ export default function StandingsPage() {
 
       {/* Mini group standings tables */}
       <section className="mb-8">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500">
+        <h2 className="mb-4 text-[10px] font-bold uppercase tracking-[0.09em] text-muted">
           Group Tables
         </h2>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {groupIds.map((gid) => (
-            <div key={gid} className="glass-card p-3">
-              <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-accent">
+            <div key={gid} className="rounded-[var(--radius-card)] border border-line bg-card p-3">
+              <h3 className="mb-2 font-[family-name:var(--font-display)] text-[17px] font-bold text-ink">
                 Group {gid}
               </h3>
               <GroupStandingsTable standings={groupStandings[gid]} />
@@ -47,7 +47,7 @@ export default function StandingsPage() {
       {/* Third-place ranking */}
       {allGroupsComplete && thirdPlaceResults.length > 0 && (
         <section className="mb-8">
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500">
+          <h2 className="mb-4 text-[10px] font-bold uppercase tracking-[0.09em] text-muted">
             Third-Place Ranking
           </h2>
           <ThirdPlaceTable results={thirdPlaceResults} />
@@ -57,10 +57,10 @@ export default function StandingsPage() {
       {/* Qualified teams grid */}
       {allGroupsComplete && (
         <section className="mb-8">
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500">
+          <h2 className="mb-4 text-[10px] font-bold uppercase tracking-[0.09em] text-muted">
             Qualified Teams (32)
           </h2>
-          <div className="glass-card p-4">
+          <div className="rounded-[var(--radius-card)] border border-line bg-card p-4">
             <QualifiedTeamsGrid
               groupStandings={groupStandings}
               thirdPlaceResults={thirdPlaceResults}
@@ -71,12 +71,12 @@ export default function StandingsPage() {
 
       {/* Proceed button */}
       {allGroupsComplete && (
-        <div className="flex justify-center animate-slideUp">
+        <div className="flex justify-center animate-fadeIn">
           <Link
             href="/knockout"
-            className="inline-flex items-center gap-2 rounded-xl bg-accent px-8 py-4 text-base font-bold text-white transition-all hover:brightness-110 animate-pulse-glow"
+            className="inline-flex items-center gap-2 rounded-[var(--radius-button)] bg-navy px-8 py-4 text-base font-bold text-paper transition-all hover:brightness-94"
           >
-            PROCEED TO KNOCKOUT
+            Proceed to Knockout
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
             </svg>

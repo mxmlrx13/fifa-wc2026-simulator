@@ -23,10 +23,10 @@ export default function RecoveryLinkDisplay({ code, recoveryToken }: RecoveryLin
   }
 
   return (
-    <div className="glass-card p-4">
+    <div className="rounded-[var(--radius-card)] border border-line bg-card p-4">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center justify-between text-xs font-bold uppercase tracking-wider text-gray-500 hover:text-gray-700"
+        className="flex w-full items-center justify-between text-[10px] font-bold uppercase tracking-[0.09em] text-muted hover:text-ink"
       >
         Your Recovery Link
         <svg
@@ -41,19 +41,19 @@ export default function RecoveryLinkDisplay({ code, recoveryToken }: RecoveryLin
       </button>
       {expanded && (
         <div className="mt-3 space-y-2">
-          <p className="text-xs text-gray-500">
+          <p className="text-[11px] text-muted">
             Save this link to restore access if your browser loses the session.
           </p>
           <div className="flex items-stretch gap-2">
             <input
               readOnly
               value={recoveryUrl}
-              className="min-w-0 flex-1 rounded-lg bg-gray-100 px-2 py-1.5 text-[10px] text-gray-600 outline-none"
+              className="min-w-0 flex-1 rounded-[var(--radius-input)] bg-out-soft px-2 py-1.5 text-[10px] text-muted outline-none"
               onFocus={(e) => e.target.select()}
             />
             <button
               onClick={handleCopy}
-              className="shrink-0 rounded-lg bg-accent/20 px-2 py-1.5 text-[10px] font-bold text-accent hover:bg-accent/30"
+              className="shrink-0 rounded-[var(--radius-button)] border border-line bg-card px-2 py-1.5 text-[10px] font-bold text-ink hover:bg-paper"
             >
               {copied ? 'Copied!' : 'Copy'}
             </button>

@@ -9,6 +9,7 @@ import { bracketTemplate } from '@/lib/data/bracket-template'
 import { teamsMap } from '@/lib/data/teams'
 import { THIRD_PLACE_MATCH_ID, FINAL_MATCH_ID } from '@/lib/constants'
 import ScoreInput from '@/components/shared/ScoreInput'
+import Skeleton from '@/components/ui/Skeleton'
 import { cn } from '@/lib/utils'
 
 function flagEmoji(flagCode: string): string {
@@ -62,6 +63,12 @@ function slotLabel(slot: string): string {
   return slot
 }
 
+// Track per-batch completion from existing official_results
+interface BatchState {
+  total: number
+  entered: number
+}
+
 export default function ResultsPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = use(params)
   const { game, currentPlayer, loading } = useGame(code)
@@ -70,18 +77,60 @@ export default function ResultsPage({ params }: { params: Promise<{ code: string
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [batchStates, setBatchStates] = useState<Record<string, BatchState>>({})
+  const [loadingExisting, setLoadingExisting] = useState(false)
 
   const matchIds = getMatchIdsForRound(selectedBatch)
   const isKnockoutBatch = !selectedBatch.startsWith('group_md')
+  const allRounds = getAllRounds()
 
-  // Reset results when batch changes
+  // Fetch batch states (how many results exist per batch)
+  useEffect(() => {
+    if (!game) return
+    async function fetchBatchStates() {
+      const res = await fetch(`/api/games/${code}/results/status`)
+      if (res.ok) {
+        const data = await res.json()
+        setBatchStates(data.batches ?? {})
+      }
+    }
+    fetchBatchStates()
+  }, [game, code, saved])
+
+  // Load existing results when batch changes
   useEffect(() => {
     setResults(new Map())
     setSaved(false)
     setSubmitError(null)
-  }, [selectedBatch])
 
-  // Compute tied knockout matches missing a winner
+    if (!game) return
+    let cancelled = false
+    setLoadingExisting(true)
+
+    fetch(`/api/games/${code}/results?batch=${selectedBatch}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled) return
+        if (data) {
+          const existing = new Map<number, MatchResult>()
+          for (const r of data.results ?? []) {
+            existing.set(r.match_id, {
+              matchId: r.match_id,
+              homeScore: r.home_score,
+              awayScore: r.away_score,
+              winnerId: r.winner_id,
+            })
+          }
+          setResults(existing)
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingExisting(false)
+      })
+
+    return () => { cancelled = true }
+  }, [selectedBatch, game, code])
+
   const tiedWithoutWinner = useMemo(() => {
     if (!isKnockoutBatch) return []
     return Array.from(results.values()).filter(
@@ -100,7 +149,6 @@ export default function ResultsPage({ params }: { params: Promise<{ code: string
         const existing = next.get(matchId) ?? { matchId, homeScore: null, awayScore: null }
         if (side === 'home') existing.homeScore = value
         else existing.awayScore = value
-        // Clear winnerId if scores change and are no longer tied
         if (existing.homeScore !== null && existing.awayScore !== null && existing.homeScore !== existing.awayScore) {
           existing.winnerId = undefined
         }
@@ -157,14 +205,19 @@ export default function ResultsPage({ params }: { params: Promise<{ code: string
   }
 
   if (loading) {
-    return <div className="flex min-h-[60vh] items-center justify-center text-sm text-gray-500">Loading...</div>
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-8">
+        <Skeleton variant="card" className="mb-4" />
+        <Skeleton variant="card" />
+      </div>
+    )
   }
 
   if (!game || !currentPlayer?.isHost) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
-        <p className="text-sm text-neon-red">Only the host can enter results</p>
-        <Link href={`/play/${code}`} className="text-xs text-accent hover:underline">Back</Link>
+        <p className="text-sm font-medium text-red">Only the host can enter results</p>
+        <Link href={`/play/${code}`} className="text-[11px] text-muted hover:text-ink hover:underline">Back</Link>
       </div>
     )
   }
@@ -175,155 +228,174 @@ export default function ResultsPage({ params }: { params: Promise<{ code: string
 
   const canSubmit = completeResults > 0 && tiedWithoutWinner.length === 0
 
-  const allRounds = getAllRounds()
-
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8">
-      <Link href={`/play/${code}`} className="mb-4 inline-block text-xs text-gray-500 hover:text-accent">
+    <div className="mx-auto max-w-4xl px-4 py-8 animate-fadeIn">
+      <Link href={`/play/${code}`} className="mb-4 inline-block text-[11px] text-muted hover:text-ink">
         &larr; Dashboard
       </Link>
 
       <div className="mb-6">
-        <h1 className="text-xl font-bold text-neon-green">Enter Real Results</h1>
-        <p className="text-xs text-gray-500">
+        <h1 className="font-[family-name:var(--font-display)] text-[24px] font-bold text-ink">Enter Real Results</h1>
+        <p className="text-[13.5px] text-muted">
           Select a batch and enter scores for those matches.
         </p>
       </div>
 
-      {/* Batch selector */}
+      {/* Batch pills with per-batch state */}
       <div className="mb-6 flex flex-wrap gap-1.5">
-        {allRounds.map((round) => (
-          <button
-            key={round}
-            onClick={() => setSelectedBatch(round)}
-            className={cn(
-              'rounded-md px-2.5 py-1.5 text-xs font-bold transition-all',
-              selectedBatch === round
-                ? 'bg-accent text-white'
-                : 'bg-gray-100 text-gray-500 hover:bg-gray-200',
-            )}
-          >
-            {getRoundLabel(round).replace('Group Stage — ', '')}
-          </button>
-        ))}
-      </div>
-
-      <p className="mb-4 text-xs text-gray-500">
-        {getRoundLabel(selectedBatch)} &mdash; {completeResults}/{matchIds.length} entered
-      </p>
-
-      <div className="space-y-2">
-        {matchIds.map((matchId) => {
-          const info = getMatchInfo(matchId)
-          if (!info) return null
-
-          const result = results.get(matchId)
-          const homeTeam = info.homeTeamId ? teamsMap[info.homeTeamId] : null
-          const awayTeam = info.awayTeamId ? teamsMap[info.awayTeamId] : null
-          const isTied = result?.homeScore !== null && result?.awayScore !== null &&
-                         result?.homeScore === result?.awayScore && isKnockoutBatch
-          const isMissingWinner = isTied && !result?.winnerId
-          const distinctLabel = getMatchDisplayLabel(matchId)
+        {allRounds.map((round) => {
+          const bs = batchStates[round]
+          const total = bs?.total ?? 0
+          const entered = bs?.entered ?? 0
+          const isDone = total > 0 && entered === total
 
           return (
-            <div key={matchId}>
-              {distinctLabel && (
-                <p className="mt-4 mb-1 text-xs font-bold uppercase tracking-wider text-accent">
-                  {distinctLabel}
-                </p>
+            <button
+              key={round}
+              onClick={() => setSelectedBatch(round)}
+              className={cn(
+                'rounded-[var(--radius-pill)] px-2.5 py-1 text-[10px] font-bold transition-all',
+                selectedBatch === round
+                  ? 'bg-navy text-paper'
+                  : isDone
+                    ? 'bg-win-soft text-win-ink'
+                    : 'border border-line bg-transparent text-muted hover:bg-paper hover:text-ink',
               )}
-              <div className={cn(
-                'glass-card flex items-center gap-2 px-4 py-3',
-                isMissingWinner && 'ring-2 ring-neon-red/50',
-              )}>
-                <span className="w-16 shrink-0 text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                  M{matchId}
-                </span>
-
-                <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5 text-right">
-                  {homeTeam ? (
-                    <>
-                      <span className="truncate text-xs font-semibold">{homeTeam.id}</span>
-                      <span className="text-base leading-none">{flagEmoji(homeTeam.flagCode)}</span>
-                    </>
-                  ) : (
-                    <span className="text-[10px] italic text-gray-400">
-                      {slotLabel((info as { homeSlot?: string }).homeSlot ?? '?')}
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-1.5">
-                  <ScoreInput
-                    value={result?.homeScore ?? null}
-                    onChange={(v) => updateResult(matchId, 'home', v)}
-                  />
-                  <span className="text-xs font-bold text-gray-400">-</span>
-                  <ScoreInput
-                    value={result?.awayScore ?? null}
-                    onChange={(v) => updateResult(matchId, 'away', v)}
-                  />
-                </div>
-
-                <div className="flex min-w-0 flex-1 items-center gap-1.5">
-                  {awayTeam ? (
-                    <>
-                      <span className="text-base leading-none">{flagEmoji(awayTeam.flagCode)}</span>
-                      <span className="truncate text-xs font-semibold">{awayTeam.id}</span>
-                    </>
-                  ) : (
-                    <span className="text-[10px] italic text-gray-400">
-                      {slotLabel((info as { awaySlot?: string }).awaySlot ?? '?')}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Winner picker for tied knockout matches */}
-              {isTied && homeTeam && awayTeam && (
-                <div className={cn(
-                  'ml-16 mt-1 flex items-center gap-2 text-xs',
-                  isMissingWinner ? 'text-neon-red font-semibold' : 'text-amber-700',
-                )}>
-                  <span>{isMissingWinner ? 'Select a winner (penalties):' : 'Winner (penalties):'}</span>
-                  <button
-                    onClick={() => setWinner(matchId, homeTeam.id)}
-                    className={cn(
-                      'rounded px-2 py-0.5 font-bold transition-all',
-                      result?.winnerId === homeTeam.id ? 'bg-accent text-white' : 'bg-gray-100 hover:bg-gray-200',
-                    )}
-                  >
-                    {homeTeam.id}
-                  </button>
-                  <button
-                    onClick={() => setWinner(matchId, awayTeam.id)}
-                    className={cn(
-                      'rounded px-2 py-0.5 font-bold transition-all',
-                      result?.winnerId === awayTeam.id ? 'bg-accent text-white' : 'bg-gray-100 hover:bg-gray-200',
-                    )}
-                  >
-                    {awayTeam.id}
-                  </button>
-                </div>
+            >
+              {getRoundLabel(round).replace('Group Stage — ', '')}
+              {isDone && ' \u2713'}
+              {total > 0 && !isDone && entered > 0 && (
+                <span className="ml-1 tabular-nums">{entered}/{total}</span>
               )}
-            </div>
+            </button>
           )
         })}
       </div>
 
-      {submitError && (
-        <p className="mt-4 text-xs font-semibold text-neon-red">{submitError}</p>
+      <p className="mb-4 text-[11px] text-muted tabular-nums">
+        {getRoundLabel(selectedBatch)} &mdash; {completeResults}/{matchIds.length} entered
+      </p>
+
+      {loadingExisting ? (
+        <div className="space-y-2">
+          <Skeleton variant="row" />
+          <Skeleton variant="row" />
+          <Skeleton variant="row" />
+        </div>
+      ) : (
+        <div className="grid gap-2 md:grid-cols-2">
+          {matchIds.map((matchId) => {
+            const info = getMatchInfo(matchId)
+            if (!info) return null
+
+            const result = results.get(matchId)
+            const homeTeam = info.homeTeamId ? teamsMap[info.homeTeamId] : null
+            const awayTeam = info.awayTeamId ? teamsMap[info.awayTeamId] : null
+            const isTied = result?.homeScore !== null && result?.awayScore !== null &&
+                           result?.homeScore === result?.awayScore && isKnockoutBatch
+            const isMissingWinner = isTied && !result?.winnerId
+            const distinctLabel = getMatchDisplayLabel(matchId)
+
+            return (
+              <div key={matchId}>
+                {distinctLabel && (
+                  <p className="mt-4 mb-1 text-[10px] font-bold uppercase tracking-[0.09em] text-navy md:col-span-2">
+                    {distinctLabel}
+                  </p>
+                )}
+                <div className={cn(
+                  'flex items-center gap-2 rounded-[var(--radius-card)] border border-line bg-card px-4 py-3',
+                  isMissingWinner && 'ring-2 ring-red/50',
+                )}>
+                  <span className="w-12 shrink-0 text-[10px] font-bold uppercase tracking-[0.09em] text-muted tabular-nums">
+                    M{matchId}
+                  </span>
+
+                  <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5 text-right">
+                    {homeTeam ? (
+                      <>
+                        <span className="truncate text-xs font-semibold">{homeTeam.id}</span>
+                        <span className="text-base leading-none">{flagEmoji(homeTeam.flagCode)}</span>
+                      </>
+                    ) : (
+                      <span className="text-[10px] italic text-muted">
+                        {slotLabel((info as { homeSlot?: string }).homeSlot ?? '?')}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <ScoreInput
+                      value={result?.homeScore ?? null}
+                      onChange={(v) => updateResult(matchId, 'home', v)}
+                    />
+                    <span className="text-xs font-bold text-muted">-</span>
+                    <ScoreInput
+                      value={result?.awayScore ?? null}
+                      onChange={(v) => updateResult(matchId, 'away', v)}
+                    />
+                  </div>
+
+                  <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                    {awayTeam ? (
+                      <>
+                        <span className="text-base leading-none">{flagEmoji(awayTeam.flagCode)}</span>
+                        <span className="truncate text-xs font-semibold">{awayTeam.id}</span>
+                      </>
+                    ) : (
+                      <span className="text-[10px] italic text-muted">
+                        {slotLabel((info as { awaySlot?: string }).awaySlot ?? '?')}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {isTied && homeTeam && awayTeam && (
+                  <div className={cn(
+                    'ml-12 mt-1 flex items-center gap-2 text-xs',
+                    isMissingWinner ? 'text-red font-semibold' : 'text-third-ink',
+                  )}>
+                    <span>{isMissingWinner ? 'Select winner:' : 'Winner:'}</span>
+                    <button
+                      onClick={() => setWinner(matchId, homeTeam.id)}
+                      className={cn(
+                        'rounded px-2 py-0.5 font-bold transition-all',
+                        result?.winnerId === homeTeam.id ? 'bg-navy text-paper' : 'bg-out-soft hover:bg-line',
+                      )}
+                    >
+                      {homeTeam.id}
+                    </button>
+                    <button
+                      onClick={() => setWinner(matchId, awayTeam.id)}
+                      className={cn(
+                        'rounded px-2 py-0.5 font-bold transition-all',
+                        result?.winnerId === awayTeam.id ? 'bg-navy text-paper' : 'bg-out-soft hover:bg-line',
+                      )}
+                    >
+                      {awayTeam.id}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
       )}
 
+      {submitError && (
+        <p className="mt-4 text-xs font-semibold text-red">{submitError}</p>
+      )}
+
+      {/* Sticky bottom bar */}
       <div className="sticky bottom-4 mt-6">
         <button
           onClick={handleSubmit}
           disabled={saving || !canSubmit}
           className={cn(
-            'w-full rounded-lg px-5 py-3 text-sm font-bold shadow-lg transition-all disabled:opacity-50',
+            'w-full rounded-[var(--radius-button)] px-5 py-3 text-sm font-bold shadow-float transition-all disabled:opacity-50',
             saved
-              ? 'bg-neon-green/20 text-neon-green glow-green'
-              : 'bg-neon-green/20 text-neon-green hover:bg-neon-green/30',
+              ? 'bg-win-soft text-win-ink'
+              : 'bg-navy text-paper hover:brightness-94',
           )}
         >
           {saving

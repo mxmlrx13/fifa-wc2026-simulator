@@ -28,26 +28,26 @@ export default function GroupCard({ groupId }: GroupCardProps) {
     <div
       id={`group-${groupId}`}
       className={cn(
-        'glass-card overflow-hidden transition-all',
-        isComplete && 'glow-green'
+        'rounded-[var(--radius-card)] border border-line bg-card overflow-hidden transition-all',
+        isComplete && 'border-win-ink/30'
       )}
     >
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+      <div className="flex items-center justify-between border-b border-line px-4 py-3">
         <div className="flex items-center gap-3">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-accent">
+          <h3 className="font-[family-name:var(--font-display)] text-[17px] font-bold text-ink">
             Group {groupId}
           </h3>
           <span className={cn(
-            'text-[10px] font-medium',
-            isComplete ? 'text-neon-green' : 'text-gray-500'
+            'text-[10px] font-semibold tabular-nums',
+            isComplete ? 'text-win-ink' : 'text-muted'
           )}>
             {completedCount}/{totalCount}
           </span>
         </div>
         <button
           onClick={() => dispatch({ type: 'RESET_GROUP', groupId })}
-          className="flex h-6 w-6 items-center justify-center rounded text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-700"
+          className="flex h-6 w-6 items-center justify-center rounded text-muted transition-colors hover:bg-line/40 hover:text-ink"
           title="Reset group"
         >
           <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -57,11 +57,11 @@ export default function GroupCard({ groupId }: GroupCardProps) {
       </div>
 
       {/* Progress bar */}
-      <div className="h-0.5 bg-gray-100">
+      <div className="h-0.5 bg-line">
         <div
           className={cn(
             'h-full transition-all duration-500',
-            isComplete ? 'bg-neon-green' : 'bg-accent'
+            isComplete ? 'bg-win-ink' : 'bg-navy'
           )}
           style={{ width: `${(completedCount / totalCount) * 100}%` }}
         />
@@ -74,7 +74,7 @@ export default function GroupCard({ groupId }: GroupCardProps) {
           return (
             <div key={md}>
               <div className="mb-0.5 mt-1 px-2">
-                <span className="text-[9px] font-semibold uppercase tracking-wider text-gray-400">
+                <span className="text-[9px] font-bold uppercase tracking-[0.09em] text-muted">
                   MD{md}
                 </span>
               </div>
@@ -87,7 +87,7 @@ export default function GroupCard({ groupId }: GroupCardProps) {
       </div>
 
       {/* Standings */}
-      <div className="border-t border-gray-200 px-3 py-2">
+      <div className="border-t border-line px-3 py-2">
         <GroupStandingsTable standings={standings} />
       </div>
     </div>

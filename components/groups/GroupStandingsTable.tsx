@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 
 interface GroupStandingsTableProps {
   standings: GroupStanding[]
+  condensed?: boolean
 }
 
 function flagEmoji(flagCode: string): string {
@@ -17,32 +18,36 @@ function flagEmoji(flagCode: string): string {
 function rowStyle(position: number): { border: string; bg: string } {
   switch (position) {
     case 1:
-      return { border: 'border-l-2 border-l-neon-green', bg: 'bg-neon-green/5' }
+      return { border: 'border-l-[3px] border-l-win-ink', bg: 'bg-win-soft' }
     case 2:
-      return { border: 'border-l-2 border-l-neon-blue', bg: 'bg-neon-blue/5' }
+      return { border: 'border-l-[3px] border-l-runner-ink', bg: 'bg-runner-soft' }
     case 3:
-      return { border: 'border-l-2 border-l-amber-500', bg: 'bg-amber-500/5' }
+      return { border: 'border-l-[3px] border-l-third-ink', bg: 'bg-third-soft' }
     default:
-      return { border: 'border-l-2 border-l-transparent', bg: '' }
+      return { border: 'border-l-[3px] border-l-transparent', bg: '' }
   }
 }
 
-export default function GroupStandingsTable({ standings }: GroupStandingsTableProps) {
+export default function GroupStandingsTable({ standings, condensed }: GroupStandingsTableProps) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-xs">
         <thead>
-          <tr className="border-b border-gray-200 text-left text-gray-500">
+          <tr className="border-b border-line text-left text-muted">
             <th className="px-1 py-1.5">#</th>
             <th className="px-1 py-1.5">Team</th>
             <th className="px-1 py-1.5 text-center">P</th>
-            <th className="px-1 py-1.5 text-center">W</th>
-            <th className="px-1 py-1.5 text-center">D</th>
-            <th className="px-1 py-1.5 text-center">L</th>
-            <th className="px-1 py-1.5 text-center">GF</th>
-            <th className="px-1 py-1.5 text-center">GA</th>
+            {!condensed && (
+              <>
+                <th className="hidden md:table-cell px-1 py-1.5 text-center">W</th>
+                <th className="hidden md:table-cell px-1 py-1.5 text-center">D</th>
+                <th className="hidden md:table-cell px-1 py-1.5 text-center">L</th>
+                <th className="hidden md:table-cell px-1 py-1.5 text-center">GF</th>
+                <th className="hidden md:table-cell px-1 py-1.5 text-center">GA</th>
+              </>
+            )}
             <th className="px-1 py-1.5 text-center">GD</th>
-            <th className="px-1 py-1.5 text-center font-bold text-accent">Pts</th>
+            <th className="px-1 py-1.5 text-center font-bold text-ink">Pts</th>
           </tr>
         </thead>
         <tbody>
@@ -53,29 +58,33 @@ export default function GroupStandingsTable({ standings }: GroupStandingsTablePr
               <tr
                 key={s.teamId}
                 className={cn(
-                  'border-b border-gray-200 transition-colors',
+                  'border-b border-line transition-colors',
                   style.border,
                   style.bg,
-                  s.position === 4 && 'text-gray-400'
+                  s.position === 4 && 'text-out-ink'
                 )}
               >
-                <td className="px-1 py-1.5 font-medium">{s.position}</td>
-                <td className="px-1 py-1.5 font-medium">
+                <td className="px-1 py-1.5 font-medium tabular-nums">{s.position}</td>
+                <td className="px-1 py-1.5 font-semibold">
                   <span className="inline-flex items-center gap-1">
                     {team && <span className="text-sm">{flagEmoji(team.flagCode)}</span>}
                     <span className="truncate">{team?.name ?? s.teamId}</span>
                   </span>
                 </td>
-                <td className="px-1 py-1.5 text-center">{s.played}</td>
-                <td className="px-1 py-1.5 text-center">{s.won}</td>
-                <td className="px-1 py-1.5 text-center">{s.drawn}</td>
-                <td className="px-1 py-1.5 text-center">{s.lost}</td>
-                <td className="px-1 py-1.5 text-center">{s.goalsFor}</td>
-                <td className="px-1 py-1.5 text-center">{s.goalsAgainst}</td>
-                <td className="px-1 py-1.5 text-center">
+                <td className="px-1 py-1.5 text-center tabular-nums">{s.played}</td>
+                {!condensed && (
+                  <>
+                    <td className="hidden md:table-cell px-1 py-1.5 text-center tabular-nums">{s.won}</td>
+                    <td className="hidden md:table-cell px-1 py-1.5 text-center tabular-nums">{s.drawn}</td>
+                    <td className="hidden md:table-cell px-1 py-1.5 text-center tabular-nums">{s.lost}</td>
+                    <td className="hidden md:table-cell px-1 py-1.5 text-center tabular-nums">{s.goalsFor}</td>
+                    <td className="hidden md:table-cell px-1 py-1.5 text-center tabular-nums">{s.goalsAgainst}</td>
+                  </>
+                )}
+                <td className="px-1 py-1.5 text-center tabular-nums">
                   {s.goalDifference > 0 ? `+${s.goalDifference}` : s.goalDifference}
                 </td>
-                <td className="px-1 py-1.5 text-center font-bold text-accent">{s.points}</td>
+                <td className="px-1 py-1.5 text-center font-extrabold text-ink tabular-nums">{s.points}</td>
               </tr>
             )
           })}

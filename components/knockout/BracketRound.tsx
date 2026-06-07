@@ -18,7 +18,7 @@ const roundLabels: Record<string, string> = {
 export default function BracketRound({ round, matches }: BracketRoundProps) {
   return (
     <div className="flex flex-col items-center gap-3">
-      <h3 className="sticky top-0 z-10 rounded-full glass-card px-4 py-1.5 text-[10px] font-bold uppercase tracking-[0.15em] text-accent shadow-lg">
+      <h3 className="sticky top-0 z-10 rounded-[var(--radius-pill)] border border-line bg-card px-4 py-1.5 text-[10px] font-bold uppercase tracking-[0.09em] text-navy shadow-float">
         {roundLabels[round] ?? round}
       </h3>
       <div className="flex flex-col items-center gap-4">

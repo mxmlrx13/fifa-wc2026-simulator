@@ -67,11 +67,11 @@ export default function JoinGameForm({ initialCode }: JoinGameFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="glass-card mx-auto max-w-md space-y-4 p-6">
-      <h2 className="text-lg font-bold text-accent">Join a Game</h2>
+    <form onSubmit={handleSubmit} className="mx-auto max-w-md space-y-4 rounded-[var(--radius-card)] border border-line bg-card p-6">
+      <h2 className="font-[family-name:var(--font-display)] text-[17px] font-bold text-ink">Join a Game</h2>
 
       <div>
-        <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-gray-500">
+        <label className="mb-1 block text-[10px] font-bold uppercase tracking-[0.09em] text-muted">
           Game Code
         </label>
         <input
@@ -81,12 +81,12 @@ export default function JoinGameForm({ initialCode }: JoinGameFormProps) {
           placeholder="e.g. WC26AB"
           maxLength={6}
           required
-          className="w-full rounded-lg bg-gray-100 px-3 py-2.5 text-center font-mono text-lg font-bold tracking-[0.3em] text-foreground placeholder-gray-400 outline-none transition-all focus:border-accent focus:shadow-[0_0_0_1px_var(--color-accent),0_0_12px_var(--color-accent-glow)]"
+          className="w-full rounded-[var(--radius-input)] border border-line bg-input px-3 py-2.5 text-center font-mono text-lg font-bold tracking-[0.3em] text-ink placeholder-muted/60 outline-none transition-all focus:border-navy"
         />
       </div>
 
       <div>
-        <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-gray-500">
+        <label className="mb-1 block text-[10px] font-bold uppercase tracking-[0.09em] text-muted">
           Your Display Name
         </label>
         <input
@@ -95,16 +95,16 @@ export default function JoinGameForm({ initialCode }: JoinGameFormProps) {
           onChange={(e) => setDisplayName(e.target.value)}
           placeholder="e.g. Maxime"
           required
-          className="w-full rounded-lg bg-gray-100 px-3 py-2.5 text-sm text-foreground placeholder-gray-400 outline-none transition-all focus:border-accent focus:shadow-[0_0_0_1px_var(--color-accent),0_0_12px_var(--color-accent-glow)]"
+          className="w-full rounded-[var(--radius-input)] border border-line bg-input px-3 py-2.5 text-sm text-ink placeholder-muted/60 outline-none transition-all focus:border-navy"
         />
       </div>
 
-      {error && <p className="text-xs text-neon-red">{error}</p>}
+      {error && <p className="text-xs font-medium text-red">{error}</p>}
 
       <button
         type="submit"
         disabled={loading || code.length < 6 || !displayName}
-        className="w-full rounded-lg bg-accent/20 px-4 py-2.5 text-sm font-bold text-accent transition-all hover:bg-accent/30 disabled:opacity-50"
+        className="w-full rounded-[var(--radius-button)] bg-navy px-4 py-3 text-sm font-bold text-paper transition-all hover:brightness-94 disabled:bg-out-soft disabled:text-out-ink disabled:cursor-not-allowed"
       >
         {loading ? 'Joining...' : 'Join Game'}
       </button>

@@ -12,11 +12,11 @@ interface RoundControlsProps {
   onAction: () => void
 }
 
-const statusColors: Record<string, string> = {
-  pending: 'bg-gray-200 text-gray-500',
-  open: 'bg-neon-green/20 text-neon-green',
-  locked: 'bg-neon-red/20 text-neon-red',
-  scored: 'bg-neon-blue/20 text-neon-blue',
+const statusBadge: Record<string, string> = {
+  pending: 'bg-badge-bg text-badge-ink',
+  open: 'bg-badge-open-bg text-badge-open-ink',
+  locked: 'bg-badge-locked-bg text-badge-locked-ink',
+  scored: 'bg-runner-soft text-runner-ink',
 }
 
 export default function RoundControls({
@@ -42,20 +42,20 @@ export default function RoundControls({
   }
 
   return (
-    <div className="glass-card p-4">
-      <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-500">
+    <div className="rounded-[var(--radius-card)] border border-line bg-card p-4">
+      <h3 className="mb-3 text-[10px] font-bold uppercase tracking-[0.09em] text-muted">
         Prediction Rounds
       </h3>
       <div className="space-y-2">
         {rounds.map((round) => (
           <div key={round.roundKey} className="flex items-center justify-between gap-2">
-            <span className="text-xs font-medium text-gray-700">
+            <span className="text-xs font-medium text-ink">
               {PREDICTION_ROUND_LABELS[round.roundKey as PredictionRoundKey] ?? round.roundKey}
             </span>
             <div className="flex items-center gap-2">
               <span className={cn(
-                'rounded-full px-2 py-0.5 text-[10px] font-bold uppercase',
-                statusColors[round.status] ?? statusColors.pending,
+                'rounded-[var(--radius-pill)] px-2 py-0.5 text-[10px] font-semibold uppercase',
+                statusBadge[round.status] ?? statusBadge.pending,
               )}>
                 {round.status}
               </span>
@@ -63,7 +63,7 @@ export default function RoundControls({
                 <button
                   onClick={() => handleAction('lock_round', round.roundKey as PredictionRoundKey)}
                   disabled={loading === round.roundKey}
-                  className="rounded px-2 py-0.5 text-[10px] font-bold text-neon-red hover:bg-neon-red/10 disabled:opacity-50"
+                  className="rounded px-2 py-0.5 text-[10px] font-bold text-red hover:bg-red-soft disabled:opacity-50"
                 >
                   {loading === round.roundKey ? '...' : 'Lock'}
                 </button>
@@ -72,7 +72,7 @@ export default function RoundControls({
                 <button
                   onClick={() => handleAction('unlock_round', round.roundKey as PredictionRoundKey)}
                   disabled={loading === round.roundKey}
-                  className="rounded px-2 py-0.5 text-[10px] font-bold text-neon-green hover:bg-neon-green/10 disabled:opacity-50"
+                  className="rounded px-2 py-0.5 text-[10px] font-bold text-win-ink hover:bg-win-soft disabled:opacity-50"
                 >
                   {loading === round.roundKey ? '...' : 'Unlock'}
                 </button>

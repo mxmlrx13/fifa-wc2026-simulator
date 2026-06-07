@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design Reference — Tricolore Editorial (Direction A)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,700&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root {
+    --bg:#faf8f4; --card:#ffffff; --ink:#19233f; --muted:#8a8f9e; --line:#e9e4da;
+    --navy:#19233f; --red:#c1273a; --red-soft:#fdf3f2; --red-line:#ecd5d3;
+    --win-ink:#3d6b41; --win-soft:#e9efe6; --run-ink:#2c4f8a; --run-soft:#e6ebf5;
+    --third-ink:#9a7b2d; --third-soft:#f5eedd; --out-ink:#9aa0ad; --out-soft:#f0ede6;
+    --badge-bg:#f0ebe1; --input:#fcfbf8;
+    --float:0 4px 14px rgba(25,35,63,0.14);
+    --display:'Fraunces',Georgia,serif; --body:'Inter',system-ui,sans-serif;
+  }
+  body { background:#eceef1; color:#1a1d23; font-family:var(--body); }
+  .wrap { max-width:1340px; margin:0 auto; padding:32px 24px 80px; }
+  .wrap > h1 { font-size:24px; font-weight:800; letter-spacing:-0.02em; margin-bottom:6px; }
+  .wrap > p.note { font-size:13px; color:#4b5563; max-width:880px; line-height:1.6; margin-bottom:8px; }
+  h2.sect { font-size:13px; text-transform:uppercase; letter-spacing:0.08em; color:#6b7280; margin:36px 0 16px; }
+  .frames { display:flex; flex-wrap:wrap; gap:26px; align-items:flex-start; }
+  .frame-col { width:375px; }
+  .caption { font-size:12px; color:#5b6470; line-height:1.55; margin-top:10px; padding:0 4px; }
+  .caption b { color:#111418; }
+
+  /* ===== phone ===== */
+  .phone { width:375px; border-radius:30px; overflow:hidden; box-shadow:0 18px 44px rgba(15,23,42,0.16); background:var(--bg); color:var(--ink); border:1px solid rgba(0,0,0,0.08); }
+  .appbar { display:flex; justify-content:space-between; align-items:center; padding:16px 16px 12px; background:var(--bg); border-bottom:2px solid var(--ink); }
+  .appbar .t { font-size:15px; font-weight:700; font-family:var(--display); }
+  .appbar .s { font-size:11px; color:var(--muted); margin-top:1px; }
+  .badge { font-size:10.5px; font-weight:600; padding:4px 9px; border-radius:999px; background:var(--badge-bg); color:var(--ink); white-space:nowrap; }
+  .badge.open { background:var(--win-soft); color:var(--win-ink); }
+  .badge.live { background:var(--red-soft); color:var(--red); }
+  .screen { padding:14px 14px 70px; min-height:565px; position:relative; }
+  .bottomnav { position:absolute; bottom:0; left:0; right:0; display:flex; border-top:1px solid var(--line); background:var(--card); padding:8px 0 10px; }
+  .bn { flex:1; text-align:center; font-size:10px; font-weight:600; color:var(--muted); }
+  .bn i { display:block; font-style:normal; font-size:16px; margin-bottom:2px; }
+  .bn.on { color:var(--red); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:11px; }
+  .cap { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.09em; color:var(--muted); margin-bottom:10px; }
+  .btn { display:block; width:100%; text-align:center; padding:13px; border-radius:12px; font-weight:700; font-size:13.5px; background:var(--navy); color:var(--bg); border:none; margin-bottom:11px; font-family:var(--body); }
+  .btn.destructive { background:var(--red); color:#fff; }
+  .row { display:flex; align-items:center; justify-content:space-between; }
+  .lb { display:flex; align-items:center; gap:10px; padding:8px 6px; border-radius:10px; font-size:13px; }
+  .lb .rk { width:20px; font-weight:800; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .lb .nm { flex:1; font-weight:600; }
+  .lb .pt { font-weight:800; font-variant-numeric:tabular-nums; font-size:14px; }
+  .lb.you { background:var(--red-soft); outline:1px solid var(--red-line); }
+  .lb.you .nm::after { content:"YOU"; font-size:8.5px; font-weight:800; letter-spacing:0.06em; margin-left:7px; padding:2px 5px; border-radius:5px; background:var(--red); color:#fff; vertical-align:1px; }
+  .timeline { display:flex; gap:5px; flex-wrap:wrap; }
+  .tl { font-size:10px; font-weight:600; padding:5px 8px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
+  .tl.done { background:var(--win-soft); color:var(--win-ink); border-color:transparent; }
+  .tl.now { background:var(--navy); color:var(--bg); border-color:transparent; }
+  .links { display:flex; gap:7px; }
+  .links a { flex:1; text-align:center; font-size:11.5px; font-weight:600; color:var(--ink); text-decoration:none; padding:10px 4px; border:1px solid var(--line); border-radius:10px; background:var(--card); }
+  .meter { font-size:12px; font-weight:600; }
+  .meter .bar { height:5px; border-radius:99px; background:var(--line); margin-top:7px; overflow:hidden; }
+  .meter .bar i { display:block; height:100%; width:94%; background:var(--red); border-radius:99px; }
+  .itabs { display:flex; gap:5px; margin-bottom:11px; }
+  .it { flex:1; text-align:center; font-size:11.5px; font-weight:600; padding:8px 4px; border-radius:9px; color:var(--muted); }
+  .it.on { background:var(--card); color:var(--ink); border:1px solid var(--line); }
+  .match { display:flex; align-items:center; justify-content:space-between; gap:6px; padding:9px 0; border-bottom:1px solid var(--line); }
+  .match:last-child { border-bottom:none; }
+  .tm { display:flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600; width:86px; }
+  .tm.r { justify-content:flex-end; }
+  .sb { width:34px; height:34px; border:1.5px solid var(--line); border-radius:9px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; background:var(--input); font-variant-numeric:tabular-nums; }
+  .sb.empty { color:var(--muted); border-style:dashed; font-weight:500; }
+  .mini { width:100%; border-collapse:collapse; }
+  .mini th, .mini td { font-size:10.5px; padding:4px 5px; text-align:left; }
+  .mini th { color:var(--muted); font-weight:600; text-transform:uppercase; font-size:9px; letter-spacing:0.05em; }
+  .mini .q1 td:first-child { border-left:3px solid var(--win-ink); }
+  .mini .q2 td:first-child { border-left:3px solid var(--run-ink); }
+  .savepill { position:absolute; right:12px; bottom:64px; font-size:11px; font-weight:700; padding:7px 12px; border-radius:999px; background:var(--navy); color:var(--bg); box-shadow:var(--float); }
+  .rpills { display:flex; gap:5px; margin-bottom:11px; }
+  .rp { flex:1; text-align:center; font-size:11px; font-weight:700; padding:7px 2px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
+  .rp.on { background:var(--navy); color:var(--bg); border-color:transparent; }
+  .rp.done { background:var(--win-soft); color:var(--win-ink); border-color:transparent; }
+  .mhead { font-size:9.5px; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:var(--muted); margin-bottom:7px; display:flex; justify-content:space-between; }
+  .pickrow { display:flex; gap:7px; }
+  .pick { flex:1; display:flex; align-items:center; gap:7px; padding:10px; border:1.5px solid var(--line); border-radius:11px; font-size:12.5px; font-weight:700; background:var(--input); }
+  .pick.sel { border-color:var(--red); background:var(--red-soft); }
+  .pick.sel::after { content:"✓"; margin-left:auto; font-weight:900; color:var(--red); }
+  .chiprow { display:flex; gap:6px; margin-bottom:11px; }
+  .pchip { font-size:11.5px; font-weight:600; padding:6px 12px; border-radius:999px; border:1px solid var(--line); color:var(--muted); background:var(--card); }
+  .pchip.on { background:var(--navy); color:var(--bg); border-color:transparent; }
+  .bd { display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid var(--line); font-size:12px; }
+  .bd:last-child { border-bottom:none; }
+  .bd .fx { width:106px; font-weight:700; font-size:11.5px; }
+  .bd .tips { flex:1; color:var(--muted); font-size:11px; line-height:1.45; }
+  .bd .tips b { color:var(--ink); font-weight:700; }
+  .ptchip { min-width:30px; height:26px; padding:0 7px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12.5px; font-variant-numeric:tabular-nums; }
+  .p5 { background:var(--red); color:#fff; }
+  .p3 { background:var(--win-soft); color:var(--win-ink); }
+  .p1 { background:var(--run-soft); color:var(--run-ink); }
+  .p0 { background:var(--out-soft); color:var(--out-ink); }
+  .sub { font-size:11px; color:var(--muted); }
+  .rndhead { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; }
+  .rndhead .r { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.07em; color:var(--muted); }
+  .rndhead .p { font-size:13px; font-weight:700; font-family:var(--display); color:var(--red); }
+  .stickysubmit { position:absolute; bottom:0; left:0; right:0; background:var(--card); border-top:1px solid var(--line); padding:10px 14px; display:flex; align-items:center; gap:10px; }
+  .stickysubmit .cnt { font-size:11.5px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .stickysubmit .btn { margin:0; flex:1; padding:11px; }
+
+  /* ===== desktop boards ===== */
+  .desk { width:1080px; max-width:100%; background:var(--bg); color:var(--ink); border:1px solid rgba(0,0,0,0.09); border-radius:18px; overflow:hidden; box-shadow:0 14px 36px rgba(15,23,42,0.12); margin-bottom:12px; }
+  .dhead { display:flex; justify-content:space-between; align-items:center; padding:18px 28px 14px; border-bottom:2px solid var(--ink); }
+  .dhead .left { display:flex; align-items:baseline; gap:14px; }
+  .dhead .gname { font-family:var(--display); font-weight:700; font-size:19px; }
+  .dhead .code { font-size:12px; color:var(--muted); font-weight:600; letter-spacing:0.12em; }
+  .dhead .navl { display:flex; gap:20px; align-items:center; font-size:12.5px; font-weight:600; color:var(--muted); }
+  .dhead .navl .on { color:var(--ink); border-bottom:2px solid var(--red); padding-bottom:2px; }
+  .dbody { padding:24px 28px 30px; display:grid; gap:18px; }
+  .cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .cols-main-side { grid-template-columns: 2fr 1fr; }
+  .desk .card { margin-bottom:0; }
+  .desk .pagetitle { font-family:var(--display); font-weight:700; font-size:24px; letter-spacing:-0.01em; }
+  .desk .toolbar { display:flex; justify-content:space-between; align-items:center; }
+  .desk .itabs { width:380px; margin:0; }
+  .span-all { grid-column:1 / -1; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Design Reference — Tricolore Editorial</h1>
+  <p class="note">Authoritative visual reference for the WC2026 tipping UI. Values in <b>tokens.css</b>, rules in <b>DESIGN_SPEC.md</b>. All team/player content below is sample data — see the France-neutrality rule. Mobile = 375px frames with bottom nav; desktop = 1080px boards with the in-game header (2px navy rule).</p>
+
+  <h2 class="sect">Mobile — Home (live phase)</h2>
+  <div class="frames">
+    <div class="frame-col">
+      <div class="phone">
+        <div class="appbar"><div><div class="t">Famille Leroux</div><div class="s">ZRQCA7 · tap to copy</div></div><div class="badge live">MD2 · results due</div></div>
+        <div class="screen">
+          <div class="card">
+            <div class="cap">Leaderboard</div>
+            <div class="lb"><span class="rk">1</span><span class="nm">Pierre</span><span class="pt">47</span></div>
+            <div class="lb you"><span class="rk">2</span><span class="nm">Maxime</span><span class="pt">44</span></div>
+            <div class="lb"><span class="rk">3</span><span class="nm">Anna</span><span class="pt">41</span></div>
+            <div class="sub" style="padding:7px 6px 0;">+ 4 more — full table →</div>
+          </div>
+          <button class="btn">Enter Matchday 2 results</button>
+          <div class="card"><div class="cap">Tournament</div>
+            <div class="timeline"><span class="tl done">MD1 ✓</span><span class="tl now">MD2</span><span class="tl">MD3</span><span class="tl">R32</span><span class="tl">R16</span><span class="tl">QF</span><span class="tl">SF</span><span class="tl">Final</span></div>
+          </div>
+          <div class="links"><a>Breakdown</a><a>Compare</a><a>Players (7)</a></div>
+          <div class="bottomnav"><div class="bn on"><i>⌂</i>Home</div><div class="bn"><i>✎</i>Predict</div><div class="bn"><i>≡</i>Table</div><div class="bn"><i>···</i>More</div></div>
+        </div>
+      </div>
+      <div class="caption"><b>Host view shown</b> (primary CTA = enter results). Player view: same screen, CTA becomes that round's action or ghost "View my predictions".</div>
+    </div>
+
+    <div class="frame-col">
+      <div class="phone">
+        <div class="appbar"><div><div class="t">Predictions</div><div class="s">Group stage · open until kickoff</div></div><div class="badge open">open</div></div>
+        <div class="screen">
+          <div class="card">
+            <div class="meter row"><span>68 / 72 predicted</span><span class="sub">Champion: 🇫🇷 France</span></div>
+            <div class="meter"><div class="bar"><i></i></div></div>
+          </div>
+          <div class="itabs"><div class="it on">Groups</div><div class="it">Standings</div><div class="it">Champion</div></div>
+          <div class="card">
+            <div class="cap row"><span style="font-family:var(--display);font-size:14px;text-transform:none;letter-spacing:0;color:var(--ink);">Group A</span><span>4/6</span></div>
+            <div class="match"><div class="tm">🇲🇽 MEX</div><div style="display:flex;gap:5px;"><div class="sb">1</div><div class="sb">2</div></div><div class="tm r">ZAF 🇿🇦</div></div>
+            <div class="match"><div class="tm">🇰🇷 KOR</div><div style="display:flex;gap:5px;"><div class="sb">2</div><div class="sb">0</div></div><div class="tm r">CZE 🇨🇿</div></div>
+            <div class="match"><div class="tm">🇲🇽 MEX</div><div style="display:flex;gap:5px;"><div class="sb empty">–</div><div class="sb empty">–</div></div><div class="tm r">KOR 🇰🇷</div></div>
+            <table class="mini" style="margin-top:9px;">
+              <tr><th>#</th><th>Team</th><th>P</th><th>GD</th><th>Pts</th></tr>
+              <tr class="q1"><td>1</td><td>🇲🇽 Mexico</td><td>1</td><td>+1</td><td><b>3</b></td></tr>
+              <tr class="q2"><td>2</td><td>🇰🇷 Korea Rep.</td><td>1</td><td>+2</td><td><b>3</b></td></tr>
+            </table>
+          </div>
+          <div class="savepill">Saved ✓</div>
+          <div class="bottomnav"><div class="bn"><i>⌂</i>Home</div><div class="bn on"><i>✎</i>Predict</div><div class="bn"><i>≡</i>Table</div><div class="bn"><i>···</i>More</div></div>
+        </div>
+      </div>
+      <div class="caption"><b>Predict, group phase.</b> Group titles in Fraunces; condensed standings (P/GD/Pts) below md; qualification = 3px left border, not full-row color.</div>
+    </div>
+
+    <div class="frame-col">
+      <div class="phone">
+        <div class="appbar"><div><div class="t">Round of 32</div><div class="s">Real bracket · 3 pts per pick</div></div><div class="badge open">open</div></div>
+        <div class="screen">
+          <div class="rpills"><span class="rp on">R32</span><span class="rp">R16</span><span class="rp">QF</span><span class="rp">SF</span><span class="rp">F</span></div>
+          <div class="card"><div class="mhead"><span>Match 74 · Boston</span><span>1A vs 3CDF</span></div>
+            <div class="pickrow"><div class="pick sel">🇫🇷 France</div><div class="pick">🇯🇵 Japan</div></div></div>
+          <div class="card"><div class="mhead"><span>Match 75 · Dallas</span><span>2C vs 2F</span></div>
+            <div class="pickrow"><div class="pick">🇧🇷 Brazil</div><div class="pick">🇩🇪 Germany</div></div></div>
+          <div class="card"><div class="mhead"><span>Match 76 · Toronto</span><span>1B vs 3ABC</span></div>
+            <div class="pickrow"><div class="pick sel">🇪🇸 Spain</div><div class="pick">🇺🇸 USA</div></div></div>
+          <div class="sub" style="text-align:center;">2 of 16 picked — picks lock when the host locks R32</div>
+          <div class="savepill">Saving…</div>
+          <div class="bottomnav"><div class="bn"><i>⌂</i>Home</div><div class="bn on"><i>✎</i>Predict</div><div class="bn"><i>≡</i>Table</div><div class="bn"><i>···</i>More</div></div>
+        </div>
+      </div>
+      <div class="caption"><b>Knockout picks.</b> Selected = red-soft + red border + red ✓ (one of the few red moments). Scored rounds: correct pick green-soft, wrong muted.</div>
+    </div>
+
+    <div class="frame-col">
+      <div class="phone">
+        <div class="appbar"><div><div class="t">Breakdown</div><div class="s">Per-match points</div></div><div class="badge">Maxime · #2 · 44 pts</div></div>
+        <div class="screen">
+          <div class="chiprow"><span class="pchip on">Maxime</span><span class="pchip">Pierre</span><span class="pchip">Anna</span><span class="pchip">+4</span></div>
+          <div class="card">
+            <div class="rndhead"><span class="r">Matchday 1</span><span class="p">23 pts</span></div>
+            <div class="bd"><span class="fx">🇲🇽 MEX–ZAF 🇿🇦</span><span class="tips">tip <b>1:2</b> · result <b>1:2</b></span><span class="ptchip p5">5</span></div>
+            <div class="bd"><span class="fx">🇰🇷 KOR–CZE 🇨🇿</span><span class="tips">tip <b>2:0</b> · result <b>1:0</b></span><span class="ptchip p1">1</span></div>
+            <div class="bd"><span class="fx">🇧🇷 BRA–MAR 🇲🇦</span><span class="tips">tip <b>0:1</b> · result <b>2:0</b></span><span class="ptchip p0">0</span></div>
+            <div class="bd"><span class="fx">🇩🇪 GER–CIV 🇨🇮</span><span class="tips">tip <b>3:1</b> · result <b>2:0</b></span><span class="ptchip p3">3</span></div>
+          </div>
+          <div class="card">
+            <div class="rndhead"><span class="r">Champion bonus</span><span class="p">+10 if right</span></div>
+            <div class="bd"><span class="fx">🇫🇷 France</span><span class="tips">decided after the Final</span><span class="ptchip p0">–</span></div>
+          </div>
+          <div class="bottomnav"><div class="bn"><i>⌂</i>Home</div><div class="bn"><i>✎</i>Predict</div><div class="bn on"><i>≡</i>Table</div><div class="bn"><i>···</i>More</div></div>
+        </div>
+      </div>
+      <div class="caption"><b>Breakdown.</b> All four tier chips visible: 5 solid red, 3 green-soft, 1 blue-soft, 0 sand. Round subtotal in Fraunces red.</div>
+    </div>
+
+    <div class="frame-col">
+      <div class="phone">
+        <div class="appbar"><div><div class="t">Enter results</div><div class="s">Host only</div></div><div class="badge">Matchday 2</div></div>
+        <div class="screen" style="padding-bottom:62px;">
+          <div class="rpills"><span class="rp done">MD1 ✓</span><span class="rp on">MD2</span><span class="rp">MD3</span><span class="rp">R32</span></div>
+          <div class="card">
+            <div class="match"><div class="tm">🇲🇽 MEX</div><div style="display:flex;gap:5px;"><div class="sb">0</div><div class="sb">0</div></div><div class="tm r">KOR 🇰🇷</div></div>
+            <div class="match"><div class="tm">🇨🇿 CZE</div><div style="display:flex;gap:5px;"><div class="sb">2</div><div class="sb">1</div></div><div class="tm r">ZAF 🇿🇦</div></div>
+            <div class="match"><div class="tm">🇨🇦 CAN</div><div style="display:flex;gap:5px;"><div class="sb empty">–</div><div class="sb empty">–</div></div><div class="tm r">QAT 🇶🇦</div></div>
+            <div class="match"><div class="tm">🇧🇦 BIH</div><div style="display:flex;gap:5px;"><div class="sb empty">–</div><div class="sb empty">–</div></div><div class="tm r">CHE 🇨🇭</div></div>
+          </div>
+          <div class="stickysubmit"><span class="cnt">2 / 24 entered</span><button class="btn">Submit results</button></div>
+        </div>
+      </div>
+      <div class="caption"><b>Results entry (host), mobile.</b> Batch pills with done-states; sticky submit with count. Tied knockout matches add a two-button winner picker; submit blocked until picked.</div>
+    </div>
+  </div>
+
+  <h2 class="sect">Desktop — Home (live phase)</h2>
+  <div class="desk">
+    <div class="dhead">
+      <div class="left"><span style="font-size:12px;color:var(--muted);">←</span><span class="gname">Famille Leroux</span><span class="code">ZRQCA7 ⧉</span></div>
+      <div class="navl"><span class="on">Home</span><span>Predict</span><span>Table</span><span>Compare</span><span class="badge live">MD2 · results due</span></div>
+    </div>
+    <div class="dbody cols-main-side">
+      <div style="display:grid;gap:18px;">
+        <div class="card">
+          <div class="cap">Leaderboard</div>
+          <div class="lb"><span class="rk">1</span><span class="nm">Pierre</span><span class="pt">47</span></div>
+          <div class="lb you"><span class="rk">2</span><span class="nm">Maxime</span><span class="pt">44</span></div>
+          <div class="lb"><span class="rk">3</span><span class="nm">Anna</span><span class="pt">41</span></div>
+          <div class="lb"><span class="rk">4</span><span class="nm">Jules</span><span class="pt">38</span></div>
+          <div class="sub" style="padding:7px 6px 0;">Full table with exact-score counts →</div>
+        </div>
+        <div class="card"><div class="cap">Tournament</div>
+          <div class="timeline"><span class="tl done">MD1 ✓</span><span class="tl now">MD2</span><span class="tl">MD3</span><span class="tl">R32</span><span class="tl">R16</span><span class="tl">QF</span><span class="tl">SF</span><span class="tl">Final</span></div>
+        </div>
+      </div>
+      <div style="display:grid;gap:18px;align-content:start;">
+        <button class="btn" style="margin:0;">Enter Matchday 2 results</button>
+        <div class="card"><div class="cap">Players (7)</div>
+          <div class="lb"><span class="nm">Pierre</span><span class="badge">HOST</span></div>
+          <div class="lb you"><span class="nm">Maxime</span></div>
+          <div class="lb"><span class="nm">Anna</span></div>
+        </div>
+        <div class="links"><a>Breakdown</a><a>Compare</a></div>
+      </div>
+    </div>
+  </div>
+  <p class="caption" style="max-width:1080px;">Two-column: content left, actions/players right. Header = back link, game name (Fraunces), code with copy glyph, nav links with red active underline, status badge. 2px navy rule under the header on every in-game page.</p>
+
+  <h2 class="sect">Desktop — Predict (group phase)</h2>
+  <div class="desk">
+    <div class="dhead">
+      <div class="left"><span style="font-size:12px;color:var(--muted);">←</span><span class="gname">Famille Leroux</span><span class="code">ZRQCA7 ⧉</span></div>
+      <div class="navl"><span>Home</span><span class="on">Predict</span><span>Table</span><span>Compare</span><span class="badge open">open</span></div>
+    </div>
+    <div class="dbody">
+      <div class="toolbar">
+        <div class="pagetitle">Predictions</div>
+        <div class="itabs"><div class="it on">Groups</div><div class="it">Standings</div><div class="it">Champion</div></div>
+        <div class="meter" style="width:230px;"><div class="row"><span>68 / 72</span><span class="sub">Champion: 🇫🇷</span></div><div class="bar"><i></i></div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;">
+        <div class="card">
+          <div class="cap row"><span style="font-family:var(--display);font-size:14px;text-transform:none;letter-spacing:0;color:var(--ink);">Group A</span><span>6/6</span></div>
+          <div class="match"><div class="tm">🇲🇽 MEX</div><div style="display:flex;gap:5px;"><div class="sb">1</div><div class="sb">2</div></div><div class="tm r">ZAF 🇿🇦</div></div>
+          <div class="match"><div class="tm">🇰🇷 KOR</div><div style="display:flex;gap:5px;"><div class="sb">2</div><div class="sb">0</div></div><div class="tm r">CZE 🇨🇿</div></div>
+          <table class="mini" style="margin-top:9px;">
+            <tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th></tr>
+            <tr class="q1"><td>1</td><td>🇲🇽 Mexico</td><td>3</td><td>2</td><td>1</td><td>0</td><td>+3</td><td><b>7</b></td></tr>
+            <tr class="q2"><td>2</td><td>🇰🇷 Korea Rep.</td><td>3</td><td>1</td><td>1</td><td>1</td><td>+1</td><td><b>4</b></td></tr>
+          </table>
+        </div>
+        <div class="card">
+          <div class="cap row"><span style="font-family:var(--display);font-size:14px;text-transform:none;letter-spacing:0;color:var(--ink);">Group B</span><span>4/6</span></div>
+          <div class="match"><div class="tm">🇨🇦 CAN</div><div style="display:flex;gap:5px;"><div class="sb">3</div><div class="sb">1</div></div><div class="tm r">CHE 🇨🇭</div></div>
+          <div class="match"><div class="tm">🇶🇦 QAT</div><div style="display:flex;gap:5px;"><div class="sb empty">–</div><div class="sb empty">–</div></div><div class="tm r">BIH 🇧🇦</div></div>
+        </div>
+        <div class="card">
+          <div class="cap row"><span style="font-family:var(--display);font-size:14px;text-transform:none;letter-spacing:0;color:var(--ink);">Group C</span><span>6/6</span></div>
+          <div class="match"><div class="tm">🇧🇷 BRA</div><div style="display:flex;gap:5px;"><div class="sb">2</div><div class="sb">0</div></div><div class="tm r">MAR 🇲🇦</div></div>
+          <div class="match"><div class="tm">🇭🇹 HTI</div><div style="display:flex;gap:5px;"><div class="sb">0</div><div class="sb">2</div></div><div class="tm r">SCO 🏴</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="caption" style="max-width:1080px;">Toolbar row: page title (Fraunces) + tabs + completion meter on one line. 3-column group grid on lg (2 on md). Full standings columns on desktop. Save pill bottom-right (not shown).</p>
+
+  <h2 class="sect">Desktop — Breakdown</h2>
+  <div class="desk">
+    <div class="dhead">
+      <div class="left"><span style="font-size:12px;color:var(--muted);">←</span><span class="gname">Famille Leroux</span><span class="code">ZRQCA7 ⧉</span></div>
+      <div class="navl"><span>Home</span><span>Predict</span><span class="on">Table</span><span>Compare</span><span class="badge">Maxime · #2</span></div>
+    </div>
+    <div class="dbody" style="grid-template-columns:200px 1fr 1fr;">
+      <div class="card" style="align-self:start;">
+        <div class="cap">Players</div>
+        <div class="lb you"><span class="nm">Maxime</span><span class="pt">44</span></div>
+        <div class="lb"><span class="nm">Pierre</span><span class="pt">47</span></div>
+        <div class="lb"><span class="nm">Anna</span><span class="pt">41</span></div>
+      </div>
+      <div class="card">
+        <div class="rndhead"><span class="r">Matchday 1</span><span class="p">23 pts</span></div>
+        <div class="bd"><span class="fx">🇲🇽 MEX–ZAF 🇿🇦</span><span class="tips">tip <b>1:2</b> · result <b>1:2</b></span><span class="ptchip p5">5</span></div>
+        <div class="bd"><span class="fx">🇰🇷 KOR–CZE 🇨🇿</span><span class="tips">tip <b>2:0</b> · result <b>1:0</b></span><span class="ptchip p1">1</span></div>
+        <div class="bd"><span class="fx">🇩🇪 GER–CIV 🇨🇮</span><span class="tips">tip <b>3:1</b> · result <b>2:0</b></span><span class="ptchip p3">3</span></div>
+      </div>
+      <div class="card">
+        <div class="rndhead"><span class="r">Matchday 2</span><span class="p">21 pts</span></div>
+        <div class="bd"><span class="fx">🇲🇽 MEX–KOR 🇰🇷</span><span class="tips">tip <b>0:0</b> · result <b>0:0</b></span><span class="ptchip p5">5</span></div>
+        <div class="bd"><span class="fx">🇨🇦 CAN–QAT 🇶🇦</span><span class="tips">tip <b>2:1</b> · result <b>0:1</b></span><span class="ptchip p0">0</span></div>
+        <div class="bd"><span class="fx">🇧🇷 BRA–HTI 🇭🇹</span><span class="tips">tip <b>3:0</b> · result <b>4:1</b></span><span class="ptchip p3">3</span></div>
+      </div>
+    </div>
+  </div>
+  <p class="caption" style="max-width:1080px;">Sticky player rail left, round cards in a 2-column grid. Same chip language as mobile.</p>
+</div>
+</body>
+</html>

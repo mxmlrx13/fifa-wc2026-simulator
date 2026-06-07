@@ -53,7 +53,7 @@ export default function MatchScoreInput({ match, dispatch }: MatchScoreInputProp
   return (
     <div className={cn(
       'flex items-center justify-between gap-2 rounded-lg px-3 py-2 transition-all',
-      isComplete ? 'bg-gray-50' : 'bg-transparent'
+      isComplete ? 'bg-paper' : 'bg-transparent'
     )}>
       {/* Home team */}
       <div className={cn(
@@ -75,7 +75,7 @@ export default function MatchScoreInput({ match, dispatch }: MatchScoreInputProp
         />
         <span className={cn(
           'text-xs font-bold',
-          isDraw ? 'text-accent' : 'text-gray-400'
+          isDraw ? 'text-navy' : 'text-muted'
         )}>
           {isComplete ? (isDraw ? '=' : '-') : '-'}
         </span>

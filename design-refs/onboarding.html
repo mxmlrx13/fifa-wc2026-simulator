@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Onboarding — final merged flow (authoritative reference)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,700&display=swap" rel="stylesheet">
+<style>
+  /* Authoritative onboarding reference. 5 screens. No stamp elements.
+     Screens 1-2 from proposal V3 ("The Ticket"), screens 3-5 from V1 ("The Programme"), copy smoothed.
+     Implement as a full-screen flow shown on first visit to a game link (before the join form),
+     and afterwards via "How it works" in the More menu and on the /play hub. */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root {
+    --bg:#faf8f4; --card:#fff; --ink:#19233f; --muted:#8a8f9e; --line:#e9e4da;
+    --navy:#19233f; --red:#c1273a; --red-soft:#fdf3f2; --red-line:#ecd5d3;
+    --win:#3d6b41; --win-soft:#e9efe6; --run:#2c4f8a; --run-soft:#e6ebf5;
+    --out:#9aa0ad; --out-soft:#f0ede6; --badge:#f0ebe1; --input:#fcfbf8;
+    --display:'Fraunces',Georgia,serif; --body:'Inter',system-ui,sans-serif;
+  }
+  body { background:#eceef1; font-family:var(--body); color:#1a1d23; display:flex; justify-content:center; padding:40px 20px; }
+  .phone { width:375px; height:640px; border-radius:30px; overflow:hidden; box-shadow:0 18px 44px rgba(15,23,42,0.16); background:var(--bg); color:var(--ink); border:1px solid rgba(0,0,0,0.08); position:relative; display:flex; flex-direction:column; }
+  .step { display:none; flex:1; flex-direction:column; padding:26px 24px 18px; animation:fade .25s ease; }
+  .step.on { display:flex; }
+  @keyframes fade { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+  .dots { display:flex; gap:6px; justify-content:center; padding:14px 0 6px; }
+  .dot { width:7px; height:7px; border-radius:99px; background:var(--line); }
+  .dot.on { background:var(--red); width:18px; transition:width .2s; }
+  .knum { font-size:10px; font-weight:800; letter-spacing:0.1em; color:var(--red); text-transform:uppercase; margin-bottom:10px; }
+  .ktitle { font-family:var(--display); font-weight:700; font-size:23px; line-height:1.2; letter-spacing:-0.01em; margin-bottom:10px; }
+  .kbody { font-size:13px; color:#4a5161; line-height:1.65; margin-bottom:16px; }
+  .kbody b { color:var(--ink); }
+  .viz { background:var(--card); border:1px solid var(--line); border-radius:13px; padding:14px; margin-bottom:auto; }
+  .navrow { display:flex; gap:9px; align-items:center; padding-top:14px; }
+  .next { flex:1; border:none; cursor:pointer; padding:13px; border-radius:12px; font-weight:700; font-size:13.5px; background:var(--navy); color:var(--bg); font-family:var(--body); }
+  .skip { border:none; background:none; cursor:pointer; font-size:12px; font-weight:600; color:var(--muted); font-family:var(--body); padding:10px; }
+  .pill { font-size:10.5px; font-weight:700; padding:4px 9px; border-radius:999px; background:var(--badge); display:inline-block; }
+  .pill.ok { background:var(--win-soft); color:var(--win); }
+  .pill.red { background:var(--red); color:#fff; }
+  .ptchip { min-width:30px; height:26px; padding:0 8px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; font-weight:800; font-size:12.5px; }
+  .p5 { background:var(--red); color:#fff; } .p3 { background:var(--win-soft); color:var(--win); }
+  .p1 { background:var(--run-soft); color:var(--run); } .p0 { background:var(--out-soft); color:var(--out); }
+  .sb { width:36px; height:36px; border:1.5px solid var(--line); border-radius:9px; display:inline-flex; align-items:center; justify-content:center; font-weight:800; font-size:15px; background:var(--input); vertical-align:middle; }
+  .mrow { display:flex; align-items:center; justify-content:space-between; gap:6px; padding:8px 0; font-size:13px; font-weight:600; }
+  .pick { flex:1; display:flex; align-items:center; gap:7px; padding:11px; border:1.5px solid var(--line); border-radius:11px; font-size:13px; font-weight:700; background:var(--input); }
+  .pick.sel { border-color:var(--red); background:var(--red-soft); }
+  .pick.sel::after { content:"✓"; margin-left:auto; font-weight:900; color:var(--red); }
+  .srow { display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-bottom:1px solid var(--line); font-size:12.5px; }
+  .srow:last-child { border-bottom:none; }
+  .tline { position:relative; padding-left:26px; }
+  .tline::before { content:""; position:absolute; left:8px; top:6px; bottom:6px; width:2px; background:var(--line); }
+  .tstop { position:relative; padding-bottom:14px; }
+  .tstop:last-child { padding-bottom:0; }
+  .tstop::before { content:""; position:absolute; left:-23px; top:3px; width:11px; height:11px; border-radius:99px; background:var(--card); border:2.5px solid var(--out); }
+  .tstop.hot::before { border-color:var(--red); background:var(--red); }
+  .tstop .tt { font-weight:800; font-size:12.5px; }
+  .tstop .td { font-size:11.5px; color:var(--muted); line-height:1.5; }
+  .lb { display:flex; align-items:center; gap:10px; padding:7px 6px; border-radius:10px; font-size:13px; }
+  .lb .rk { width:18px; font-weight:800; color:var(--muted); }
+  .lb .nm { flex:1; font-weight:600; } .lb .pt { font-weight:800; }
+  .lb.you { background:var(--red-soft); outline:1px solid var(--red-line); }
+</style>
+</head>
+<body>
+  <div class="phone" id="ob">
+    <!-- SCREEN 1 (from V3) -->
+    <div class="step on">
+      <div class="knum">Your ticket</div>
+      <div class="ktitle">Five weeks of football. One table of truth.</div>
+      <p class="kbody">Someone you know started a prediction game. Here's the itinerary — read it, you'll be quizzed by reality.</p>
+      <div class="viz tline">
+        <div class="tstop hot"><div class="tt">Now → first kickoff</div><div class="td">predict everything</div></div>
+        <div class="tstop"><div class="tt">Group stage</div><div class="td">points roll in after every matchday</div></div>
+        <div class="tstop"><div class="tt">Knockouts → Final</div><div class="td">fresh picks each round, stakes rise</div></div>
+      </div>
+      <div class="navrow"><button class="skip" onclick="go(4)">Skip</button><button class="next" onclick="go(1)">Show me</button></div>
+    </div>
+
+    <!-- SCREEN 2 (from V3) -->
+    <div class="step">
+      <div class="knum">Step 1 · Before kickoff</div>
+      <div class="ktitle">Homework first: 72 scores.</div>
+      <p class="kbody">Every group match gets a scoreline from you before the opening whistle. Pick a champion too (<b>+10</b> if they go all the way). Then the host locks it — <b>no edits, no excuses</b>.</p>
+      <div class="viz">
+        <div class="mrow"><span>🇩🇪 GER</span><span><span class="sb">3</span> <span class="sb">1</span></span><span>CIV 🇨🇮</span></div>
+        <div style="text-align:center;margin-top:6px;"><span class="pill red">locks at kickoff</span></div>
+      </div>
+      <div class="navrow"><button class="skip" onclick="go(4)">Skip</button><button class="next" onclick="go(2)">Next</button></div>
+    </div>
+
+    <!-- SCREEN 3 (from V1) -->
+    <div class="step">
+      <div class="knum">Step 2 · Scoring</div>
+      <div class="ktitle">Closer tip, more points.</div>
+      <p class="kbody">When real results come in, points land automatically:</p>
+      <div class="viz">
+        <div class="srow"><span>Exact score</span><span class="ptchip p5">5</span></div>
+        <div class="srow"><span>Right result + goal difference</span><span class="ptchip p3">3</span></div>
+        <div class="srow"><span>Right result</span><span class="ptchip p1">1</span></div>
+        <div class="srow"><span>Wrong</span><span class="ptchip p0">0</span></div>
+      </div>
+      <div class="navrow"><button class="skip" onclick="go(4)">Skip</button><button class="next" onclick="go(3)">Next</button></div>
+    </div>
+
+    <!-- SCREEN 4 (from V1) -->
+    <div class="step">
+      <div class="knum">Step 3 · Knockouts</div>
+      <div class="ktitle">Pick winners, round by round.</div>
+      <p class="kbody">No crystal ball needed: when the real bracket is known, you pick who advances — <b>fresh picks before every round</b>. And they're worth more each time: 3 → 4 → 5 → 6 → 8 pts.</p>
+      <div class="viz">
+        <div style="display:flex;gap:7px;"><div class="pick sel">🇧🇷 Brazil</div><div class="pick">🇩🇪 Germany</div></div>
+        <div style="text-align:center;margin-top:8px;"><span class="pill">Round of 32 · 3 pts per pick</span></div>
+      </div>
+      <div class="navrow"><button class="skip" onclick="go(4)">Skip</button><button class="next" onclick="go(4)">Next</button></div>
+    </div>
+
+    <!-- SCREEN 5 (from V1) -->
+    <div class="step">
+      <div class="knum">Step 4 · Glory</div>
+      <div class="ktitle">Climb. Gloat. Repeat.</div>
+      <p class="kbody">Live leaderboard after every matchday, point-by-point breakdowns, and bragging rights until 2030.</p>
+      <div class="viz">
+        <div class="lb"><span class="rk">1</span><span class="nm">Pierre</span><span class="pt">47</span></div>
+        <div class="lb you"><span class="rk">2</span><span class="nm">You</span><span class="pt">44</span></div>
+        <div class="lb"><span class="rk">3</span><span class="nm">Anna</span><span class="pt">41</span></div>
+      </div>
+      <div class="navrow"><button class="next" onclick="go(0)">Join the game →</button></div>
+    </div>
+    <div class="dots" id="dots"></div>
+  </div>
+
+<script>
+/* Reference behavior: fade between steps, progress dots, Skip jumps to last screen.
+   In the app, the final CTA is contextual: "Join the game →" (first visit, continues to the
+   join form) or "Back" (opened from the How-it-works menu entry). */
+function steps(){ return [...document.querySelectorAll('#ob .step')]; }
+function go(n){ const s=steps(); s.forEach(x=>x.classList.remove('on')); s[n].classList.add('on'); dots(); }
+function dots(){ const s=steps(), cur=s.findIndex(x=>x.classList.contains('on'));
+  document.getElementById('dots').innerHTML=s.map((_,i)=>`<div class="dot${i===cur?' on':''}"></div>`).join(''); }
+dots();
+</script>
+</body>
+</html>

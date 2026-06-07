@@ -1,10 +1,16 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getMatchIdsForRound, getRoundLabel, isGroupRound, type RoundKey } from '@/lib/engine/rounds'
+import {
+  PREDICTION_ROUND_LABELS,
+  PREDICTION_ROUND_RANGES,
+  type PredictionRoundKey,
+} from '@/lib/constants'
 import { groupFixtures } from '@/lib/data/fixtures'
 import { bracketTemplate } from '@/lib/data/bracket-template'
 import { teamsMap } from '@/lib/data/teams'
+import Skeleton from '@/components/ui/Skeleton'
+import EmptyState from '@/components/ui/EmptyState'
 import { cn } from '@/lib/utils'
 
 interface Player {
@@ -22,8 +28,17 @@ interface Prediction {
 
 interface PredictionComparisonProps {
   code: string
-  round: RoundKey
+  round: PredictionRoundKey
   players: Player[]
+  currentPlayerId?: string
+}
+
+function flagEmoji(flagCode: string): string {
+  if (flagCode === 'gb-eng') return '\u{1F3F4}\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}'
+  if (flagCode === 'gb-sct') return '\u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F}'
+  if (flagCode === 'gb-wls') return '\u{1F3F4}\u{E0067}\u{E0062}\u{E0077}\u{E006C}\u{E0073}\u{E007F}'
+  const code = flagCode.toUpperCase()
+  return String.fromCodePoint(...[...code].map(c => c.charCodeAt(0) + 0x1F1A5))
 }
 
 function getMatchTeams(matchId: number): { home: string; away: string } {
@@ -41,93 +56,137 @@ function getMatchTeams(matchId: number): { home: string; away: string } {
   return { home: '???', away: '???' }
 }
 
+function teamShort(teamId: string): string {
+  const team = teamsMap[teamId]
+  if (!team) return teamId
+  return `${flagEmoji(team.flagCode)} ${team.id}`
+}
+
 export default function PredictionComparison({
   code,
   round,
   players,
+  currentPlayerId,
 }: PredictionComparisonProps) {
   const [predictions, setPredictions] = useState<Prediction[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let cancelled = false
     setLoading(true)
-    async function load() {
-      const res = await fetch(`/api/games/${code}/predictions?round=${round}`)
-      if (res.ok) {
-        const data = await res.json()
-        setPredictions(data.predictions)
-      }
-      setLoading(false)
-    }
-    load()
+
+    fetch(`/api/games/${code}/predictions?round=${round}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data) setPredictions(data.predictions)
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => { cancelled = true }
   }, [code, round])
 
   if (loading) {
-    return <div className="text-center text-xs text-gray-500">Loading...</div>
+    return (
+      <div className="space-y-2">
+        <Skeleton variant="row" />
+        <Skeleton variant="row" />
+        <Skeleton variant="row" />
+      </div>
+    )
   }
 
-  const matchIds = getMatchIdsForRound(round)
-  const isGroup = isGroupRound(round)
+  const [min, max] = PREDICTION_ROUND_RANGES[round]
+  const matchIds: number[] = []
+  for (let i = min; i <= max; i++) matchIds.push(i)
+
+  const isGroup = round === 'group'
+
+  if (predictions.length === 0) {
+    return (
+      <EmptyState
+        label="No predictions"
+        message="No predictions available for this round yet."
+      />
+    )
+  }
 
   return (
-    <div className="glass-card overflow-x-auto">
-      <div className="px-4 py-3 border-b border-gray-200">
-        <h3 className="text-sm font-bold text-accent">{getRoundLabel(round)}</h3>
+    <div className="rounded-[var(--radius-card)] border border-line bg-card overflow-hidden">
+      <div className="px-4 py-3 border-b border-line">
+        <h3 className="font-[family-name:var(--font-display)] text-[17px] font-bold text-ink">
+          {PREDICTION_ROUND_LABELS[round]}
+        </h3>
       </div>
-      <table className="w-full text-xs">
-        <thead>
-          <tr className="border-b border-gray-200 bg-gray-50 text-left text-[10px] uppercase tracking-wider text-gray-500">
-            <th className="px-3 py-2 sticky left-0 bg-card">Match</th>
-            {players.map((p) => (
-              <th key={p.id} className="px-3 py-2 text-center">{p.displayName}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {matchIds.map((matchId) => {
-            const { home, away } = getMatchTeams(matchId)
-            const homeTeam = teamsMap[home]
-            const awayTeam = teamsMap[away]
+      {/* Horizontally scrollable with frozen first column */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b border-line bg-paper text-left text-[10px] font-bold uppercase tracking-[0.09em] text-muted">
+              <th className="sticky left-0 z-10 bg-paper px-3 py-2 min-w-[140px]">Match</th>
+              {players.map((p) => (
+                <th
+                  key={p.id}
+                  className={cn(
+                    'px-3 py-2 text-center whitespace-nowrap min-w-[80px]',
+                    p.id === currentPlayerId && 'text-red',
+                  )}
+                >
+                  {p.displayName}
+                  {p.id === currentPlayerId && (
+                    <span className="ml-1 rounded-[5px] bg-red px-1 py-0.5 text-[7px] font-extrabold uppercase text-white">
+                      YOU
+                    </span>
+                  )}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {matchIds.map((matchId) => {
+              const { home, away } = getMatchTeams(matchId)
 
-            return (
-              <tr key={matchId} className="border-b border-gray-200">
-                <td className="px-3 py-2 sticky left-0 bg-card whitespace-nowrap">
-                  <span className="font-medium">
-                    {homeTeam?.id ?? home} vs {awayTeam?.id ?? away}
-                  </span>
-                </td>
-                {players.map((p) => {
-                  const pred = predictions.find(
-                    (pr) => pr.player_id === p.id && pr.match_id === matchId,
-                  )
+              return (
+                <tr key={matchId} className="border-b border-line">
+                  <td className="sticky left-0 z-10 bg-card px-3 py-2 whitespace-nowrap">
+                    <span className="font-semibold text-ink text-[11px]">
+                      {teamShort(home)} – {teamShort(away)}
+                    </span>
+                  </td>
+                  {players.map((p) => {
+                    const pred = predictions.find(
+                      (pr) => pr.player_id === p.id && pr.match_id === matchId,
+                    )
 
-                  if (!isGroup && pred?.winner_id) {
+                    if (!isGroup && pred?.winner_id) {
+                      return (
+                        <td key={p.id} className="px-3 py-2 text-center">
+                          <span className="font-mono font-extrabold text-navy tabular-nums text-[11px]">
+                            {pred.winner_id}
+                          </span>
+                        </td>
+                      )
+                    }
+
                     return (
                       <td key={p.id} className="px-3 py-2 text-center">
-                        <span className="font-mono font-bold text-accent">
-                          {pred.winner_id}
-                        </span>
+                        {pred && pred.home_score !== null && pred.away_score !== null ? (
+                          <span className="font-mono font-extrabold tabular-nums text-[12px]">
+                            {pred.home_score}-{pred.away_score}
+                          </span>
+                        ) : (
+                          <span className="text-muted">&ndash;</span>
+                        )}
                       </td>
                     )
-                  }
-
-                  return (
-                    <td key={p.id} className="px-3 py-2 text-center">
-                      {pred && pred.home_score !== null && pred.away_score !== null ? (
-                        <span className="font-mono font-bold">
-                          {pred.home_score}-{pred.away_score}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
-                    </td>
-                  )
-                })}
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
+                  })}
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

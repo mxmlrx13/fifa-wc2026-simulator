@@ -174,5 +174,53 @@ export async function PATCH(
     return Response.json({ success: true, roundKey, status: 'open' })
   }
 
-  return Response.json({ error: 'Invalid action. Use "lock_round" or "unlock_round".' }, { status: 400 })
+  if (action === 'open_round') {
+    // Only open rounds that are currently 'pending'
+    const { data: round } = await supabase
+      .from('game_rounds')
+      .select('status')
+      .eq('game_id', game.id)
+      .eq('round_key', roundKey)
+      .single()
+
+    if (!round) {
+      return Response.json({ error: 'Round not found' }, { status: 404 })
+    }
+
+    if (round.status !== 'pending') {
+      return Response.json({ error: `Cannot open round with status "${round.status}"` }, { status: 400 })
+    }
+
+    // Verify predecessor round is scored (except for the first round)
+    const roundIdx = PREDICTION_ROUNDS.indexOf(roundKey)
+    if (roundIdx > 0) {
+      const prevRound = PREDICTION_ROUNDS[roundIdx - 1]
+      const { data: prevRow } = await supabase
+        .from('game_rounds')
+        .select('status')
+        .eq('game_id', game.id)
+        .eq('round_key', prevRound)
+        .single()
+
+      if (prevRow && prevRow.status !== 'scored') {
+        return Response.json({
+          error: `Previous round "${prevRound}" must be scored before opening "${roundKey}"`,
+        }, { status: 400 })
+      }
+    }
+
+    const { error } = await supabase
+      .from('game_rounds')
+      .update({ status: 'open', opened_at: new Date().toISOString() })
+      .eq('game_id', game.id)
+      .eq('round_key', roundKey)
+
+    if (error) {
+      return Response.json({ error: 'Failed to open round' }, { status: 500 })
+    }
+
+    return Response.json({ success: true, roundKey, status: 'open' })
+  }
+
+  return Response.json({ error: 'Invalid action. Use "lock_round", "unlock_round", or "open_round".' }, { status: 400 })
 }

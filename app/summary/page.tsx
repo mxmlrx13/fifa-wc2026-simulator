@@ -21,10 +21,10 @@ export default function SummaryPage() {
   if (!champion) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-10 text-center">
-        <h1 className="mb-4 text-2xl font-bold text-gray-900">Tournament Summary</h1>
-        <div className="glass-card rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-6 text-sm text-amber-700">
+        <h1 className="mb-4 font-[family-name:var(--font-display)] text-[24px] font-bold text-ink">Tournament Summary</h1>
+        <div className="rounded-[var(--radius-card)] border border-third-ink/20 bg-third-soft px-4 py-6 text-sm text-third-ink">
           Complete the knockout bracket to see the tournament summary.{' '}
-          <Link href="/knockout" className="font-semibold text-accent hover:underline">
+          <Link href="/knockout" className="font-semibold text-navy hover:underline">
             Go to Knockout
           </Link>
         </div>
@@ -85,28 +85,23 @@ export default function SummaryPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 animate-fadeIn">
-      {/* Decorative orbs */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute left-1/2 top-1/4 h-[500px] w-[500px] -translate-x-1/2 rounded-full bg-accent/5 blur-[140px]" />
-      </div>
-
       <div className="relative z-10">
         {/* Champion showcase */}
         <div className="mb-10 text-center">
-          <p className="mb-1 text-xs font-bold uppercase tracking-[0.3em] text-gray-500">
+          <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.09em] text-muted">
             FIFA World Cup 2026
           </p>
-          <h1 className="mb-6 text-4xl font-extrabold tracking-tight text-accent sm:text-5xl">
-            WORLD CHAMPION
+          <h1 className="mb-6 font-[family-name:var(--font-display)] text-[28px] font-bold tracking-tight text-ink sm:text-[36px]">
+            World Champion
           </h1>
 
-          <div className="glass-card glow-accent mx-auto inline-block rounded-2xl px-10 py-8">
+          <div className="mx-auto inline-block rounded-[var(--radius-card)] border border-line bg-card px-10 py-8">
             {firstTeam && (
               <div className="text-6xl leading-none">
                 {flagEmoji(firstTeam.flagCode)}
               </div>
             )}
-            <p className="mt-4 text-2xl font-extrabold text-gray-900 sm:text-3xl">
+            <p className="mt-4 font-[family-name:var(--font-display)] text-[24px] font-bold text-ink sm:text-[28px]">
               {firstTeam?.name ?? firstId}
             </p>
           </div>
@@ -116,8 +111,8 @@ export default function SummaryPage() {
         <div className="mb-10 flex items-end justify-center gap-3">
           {/* 2nd place - left */}
           <div className="flex w-28 flex-col items-center">
-            <div className="glass-card w-full rounded-t-lg border-t-2 border-t-slate-400 px-3 pb-3 pt-4 text-center">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
+            <div className="w-full rounded-t-lg border border-line border-t-[3px] border-t-runner-ink bg-card px-3 pb-3 pt-4 text-center">
+              <span className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted">
                 2nd
               </span>
               {secondTeam && (
@@ -125,17 +120,17 @@ export default function SummaryPage() {
                   {flagEmoji(secondTeam.flagCode)}
                 </div>
               )}
-              <p className="mt-1 truncate text-xs font-semibold text-gray-700">
+              <p className="mt-1 truncate text-xs font-semibold text-ink">
                 {secondTeam?.name ?? 'TBD'}
               </p>
             </div>
-            <div className="h-16 w-full rounded-b-sm bg-gradient-to-b from-slate-600/30 to-slate-700/20" />
+            <div className="h-16 w-full rounded-b-sm bg-runner-soft" />
           </div>
 
           {/* 1st place - center, tallest */}
           <div className="flex w-32 flex-col items-center">
-            <div className="glass-card glow-accent w-full rounded-t-lg border-t-2 border-t-accent px-3 pb-3 pt-4 text-center">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-accent">
+            <div className="w-full rounded-t-lg border border-line border-t-[3px] border-t-red bg-card px-3 pb-3 pt-4 text-center">
+              <span className="text-[10px] font-bold uppercase tracking-[0.09em] text-red">
                 Champion
               </span>
               {firstTeam && (
@@ -143,17 +138,17 @@ export default function SummaryPage() {
                   {flagEmoji(firstTeam.flagCode)}
                 </div>
               )}
-              <p className="mt-1 truncate text-sm font-bold text-gray-900">
+              <p className="mt-1 truncate text-sm font-bold text-ink">
                 {firstTeam?.name ?? firstId}
               </p>
             </div>
-            <div className="h-24 w-full rounded-b-sm bg-gradient-to-b from-accent/20 to-accent/5" />
+            <div className="h-24 w-full rounded-b-sm bg-red-soft" />
           </div>
 
           {/* 3rd place - right */}
           <div className="flex w-28 flex-col items-center">
-            <div className="glass-card w-full rounded-t-lg border-t-2 border-t-amber-600 px-3 pb-3 pt-4 text-center">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-500">
+            <div className="w-full rounded-t-lg border border-line border-t-[3px] border-t-third-ink bg-card px-3 pb-3 pt-4 text-center">
+              <span className="text-[10px] font-bold uppercase tracking-[0.09em] text-third-ink">
                 3rd
               </span>
               {thirdTeam && (
@@ -161,33 +156,33 @@ export default function SummaryPage() {
                   {flagEmoji(thirdTeam.flagCode)}
                 </div>
               )}
-              <p className="mt-1 truncate text-xs font-semibold text-gray-700">
+              <p className="mt-1 truncate text-xs font-semibold text-ink">
                 {thirdTeam?.name ?? 'TBD'}
               </p>
             </div>
-            <div className="h-12 w-full rounded-b-sm bg-gradient-to-b from-amber-700/20 to-amber-800/10" />
+            <div className="h-12 w-full rounded-b-sm bg-third-soft" />
           </div>
         </div>
 
         {/* Stats */}
         <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className="glass-card p-4 text-center">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
+          <div className="rounded-[var(--radius-card)] border border-line bg-card p-4 text-center">
+            <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted">
               Group Stage Goals
             </p>
-            <p className="mt-1 text-2xl font-bold text-accent">{totalGoals}</p>
+            <p className="mt-1 text-2xl font-extrabold text-ink tabular-nums">{totalGoals}</p>
           </div>
-          <div className="glass-card p-4 text-center">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
+          <div className="rounded-[var(--radius-card)] border border-line bg-card p-4 text-center">
+            <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted">
               Highest Scoring Group
             </p>
-            <p className="mt-1 text-2xl font-bold text-gray-900">
+            <p className="mt-1 font-[family-name:var(--font-display)] text-2xl font-bold text-ink">
               Group {highestScoringGroup}
             </p>
-            <p className="text-xs text-gray-500">{highestGroupGoals} goals</p>
+            <p className="text-xs text-muted tabular-nums">{highestGroupGoals} goals</p>
           </div>
-          <div className="glass-card p-4 text-center">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
+          <div className="rounded-[var(--radius-card)] border border-line bg-card p-4 text-center">
+            <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted">
               Top Scoring Team (Groups)
             </p>
             {topScorerTeamId ? (
@@ -195,10 +190,10 @@ export default function SummaryPage() {
                 <div className="mt-1 flex justify-center">
                   <TeamBadge teamId={topScorerTeamId} size="sm" />
                 </div>
-                <p className="text-xs text-gray-500">{topScorerGoals} goals</p>
+                <p className="text-xs text-muted tabular-nums">{topScorerGoals} goals</p>
               </>
             ) : (
-              <p className="mt-1 text-sm text-gray-400">N/A</p>
+              <p className="mt-1 text-sm text-muted">N/A</p>
             )}
           </div>
         </div>
@@ -212,7 +207,7 @@ export default function SummaryPage() {
           />
           <Link
             href="/groups"
-            className="glass-card rounded-lg px-4 py-2 text-sm font-medium text-gray-500 transition-all hover:bg-gray-100 hover:text-gray-900"
+            className="inline-flex items-center rounded-[var(--radius-button)] border border-line bg-card px-4 py-2 text-sm font-medium text-muted transition-all hover:bg-paper hover:text-ink"
           >
             Review Groups
           </Link>

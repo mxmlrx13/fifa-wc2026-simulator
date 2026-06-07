@@ -20,14 +20,14 @@ export default function GameCodeDisplay({ code }: GameCodeDisplayProps) {
     <button
       onClick={handleCopy}
       className={cn(
-        'glass-card inline-flex items-center gap-3 px-5 py-3 transition-all hover:bg-gray-100',
-        copied && 'glow-green',
+        'inline-flex items-center gap-3 rounded-[var(--radius-card)] border border-line bg-card px-5 py-3 transition-all hover:bg-paper',
+        copied && 'border-win-ink/30',
       )}
     >
-      <span className="font-mono text-2xl font-bold tracking-[0.3em] text-accent">
+      <span className="font-[family-name:var(--font-display)] text-2xl font-bold tracking-[0.3em] text-ink">
         {code}
       </span>
-      <span className="text-xs text-gray-500">
+      <span className="text-[11px] text-muted">
         {copied ? 'Copied!' : 'Click to copy'}
       </span>
     </button>

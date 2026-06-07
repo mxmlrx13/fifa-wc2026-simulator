@@ -9,9 +9,11 @@ export default function ScoreInput({ value, onChange }: ScoreInputProps) {
   return (
     <input
       type="number"
+      inputMode="numeric"
       min={0}
       max={99}
       value={value ?? ''}
+      placeholder="\u2013"
       onChange={(e) => {
         const raw = e.target.value
         if (raw === '') {
@@ -23,7 +25,7 @@ export default function ScoreInput({ value, onChange }: ScoreInputProps) {
           onChange(num)
         }
       }}
-      className="w-12 rounded-md bg-gray-100 px-1 py-2 text-center text-sm font-bold text-foreground transition-all focus:border-accent focus:shadow-[0_0_0_2px_rgba(163,136,42,0.2)] focus:outline-none"
+      className="h-11 w-12 rounded-[var(--radius-input)] border-[1.5px] border-dashed border-line bg-input px-1 py-2 text-center text-[15px] font-extrabold text-ink tabular-nums transition-all placeholder:text-muted focus:border-solid focus:border-navy focus:outline-none"
     />
   )
 }

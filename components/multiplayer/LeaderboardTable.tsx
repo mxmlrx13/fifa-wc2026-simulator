@@ -1,8 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
+import EmptyState from '@/components/ui/EmptyState'
+import Skeleton from '@/components/ui/Skeleton'
 
 interface LeaderboardEntry {
   playerId: string
@@ -12,6 +15,7 @@ interface LeaderboardEntry {
   exactScores: number
   correctResults: number
   matchesScored: number
+  championBonus: number
   rank: number
 }
 
@@ -19,9 +23,10 @@ interface LeaderboardTableProps {
   code: string
   gameId?: string
   compact?: boolean
+  currentPlayerId?: string
 }
 
-export default function LeaderboardTable({ code, gameId, compact }: LeaderboardTableProps) {
+export default function LeaderboardTable({ code, gameId, compact, currentPlayerId }: LeaderboardTableProps) {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -38,7 +43,6 @@ export default function LeaderboardTable({ code, gameId, compact }: LeaderboardT
     fetchLeaderboard()
   }, [code])
 
-  // Subscribe to score changes
   useEffect(() => {
     if (!gameId) return
 
@@ -65,65 +69,120 @@ export default function LeaderboardTable({ code, gameId, compact }: LeaderboardT
   }, [gameId])
 
   if (loading) {
-    return <div className="text-center text-xs text-gray-500">Loading leaderboard...</div>
+    return (
+      <div className="space-y-2 p-4">
+        <Skeleton variant="row" />
+        <Skeleton variant="row" />
+        <Skeleton variant="row" />
+      </div>
+    )
   }
 
   if (leaderboard.length === 0) {
-    return <div className="text-center text-xs text-gray-500">No scores yet</div>
+    return <EmptyState label="Leaderboard" message="No scores yet. Scores will appear after the host enters results." />
   }
 
-  const displayEntries = compact ? leaderboard.slice(0, 5) : leaderboard
+  // Compact: show top 3 + current user if outside top 3
+  let displayEntries = leaderboard
+  let moreCount = 0
+  if (compact) {
+    const top3 = leaderboard.slice(0, 3)
+    const currentInTop3 = currentPlayerId && top3.some((e) => e.playerId === currentPlayerId)
+    if (currentPlayerId && !currentInTop3) {
+      const currentEntry = leaderboard.find((e) => e.playerId === currentPlayerId)
+      if (currentEntry) {
+        displayEntries = [...top3, currentEntry]
+        moreCount = leaderboard.length - 4
+      } else {
+        displayEntries = top3
+        moreCount = leaderboard.length - 3
+      }
+    } else {
+      displayEntries = top3
+      moreCount = leaderboard.length - 3
+    }
+  }
 
   return (
-    <div className="glass-card overflow-hidden">
+    <div className="rounded-[var(--radius-card)] border border-line bg-card overflow-hidden">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-gray-200 bg-gray-50 text-left text-[10px] uppercase tracking-wider text-gray-500">
-            <th className="px-4 py-2">#</th>
+          <tr className="border-b border-line bg-paper text-left text-[10px] font-bold uppercase tracking-[0.09em] text-muted">
+            <th className="px-4 py-2 w-10">#</th>
             <th className="px-4 py-2">Player</th>
             <th className="px-4 py-2 text-right">Pts</th>
-            {!compact && <th className="px-4 py-2 text-right">Exact</th>}
-            {!compact && <th className="px-4 py-2 text-right">Correct</th>}
-            {!compact && <th className="px-4 py-2 text-right">Matches</th>}
+            <th className="hidden md:table-cell px-4 py-2 text-right">Exact</th>
           </tr>
         </thead>
         <tbody>
-          {displayEntries.map((entry) => (
-            <tr
-              key={entry.playerId}
-              className={cn(
-                'border-b border-gray-200 transition-colors',
-                entry.rank === 1 && 'bg-accent/5',
-              )}
-            >
-              <td className="px-4 py-2.5">
-                <span className={cn(
-                  'inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold',
-                  entry.rank === 1 && 'bg-accent/20 text-accent',
-                  entry.rank === 2 && 'bg-slate-400/20 text-gray-500',
-                  entry.rank === 3 && 'bg-amber-700/20 text-amber-600',
-                  entry.rank > 3 && 'text-gray-400',
-                )}>
-                  {entry.rank}
-                </span>
-              </td>
-              <td className="px-4 py-2.5 font-medium">{entry.displayName}</td>
-              <td className="px-4 py-2.5 text-right font-bold text-accent">
-                {entry.totalPoints}
-              </td>
-              {!compact && (
-                <td className="px-4 py-2.5 text-right text-neon-green">{entry.exactScores}</td>
-              )}
-              {!compact && (
-                <td className="px-4 py-2.5 text-right text-neon-blue">{entry.correctResults}</td>
-              )}
-              {!compact && (
-                <td className="px-4 py-2.5 text-right text-gray-500">{entry.matchesScored}</td>
-              )}
-            </tr>
-          ))}
+          {displayEntries.map((entry, idx) => {
+            const isYou = entry.playerId === currentPlayerId
+            // Show separator before "you" row if not contiguous with top 3
+            const showSeparator = compact && idx === 3 && entry.rank > 4
+
+            return (
+              <tr
+                key={entry.playerId}
+                className={cn(
+                  'border-b border-line transition-colors',
+                  isYou && 'bg-red-soft',
+                  showSeparator && 'border-t-2 border-t-line',
+                )}
+              >
+                <td className="px-4 py-2.5">
+                  <span className={cn(
+                    'inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold tabular-nums',
+                    entry.rank === 1 && 'bg-win-soft text-win-ink',
+                    entry.rank === 2 && 'bg-runner-soft text-runner-ink',
+                    entry.rank === 3 && 'bg-third-soft text-third-ink',
+                    entry.rank > 3 && 'text-muted',
+                  )}>
+                    {entry.rank}
+                  </span>
+                </td>
+                <td className="px-4 py-2.5">
+                  {compact ? (
+                    <span className="font-semibold text-ink">
+                      {entry.displayName}
+                      {isYou && (
+                        <span className="ml-1.5 rounded-[5px] bg-red px-1.5 py-0.5 text-[8.5px] font-extrabold uppercase text-white">
+                          YOU
+                        </span>
+                      )}
+                    </span>
+                  ) : (
+                    <Link
+                      href={`/play/${code}/breakdown?player=${entry.playerId}`}
+                      className="font-semibold text-ink hover:underline"
+                    >
+                      {entry.displayName}
+                      {isYou && (
+                        <span className="ml-1.5 rounded-[5px] bg-red px-1.5 py-0.5 text-[8.5px] font-extrabold uppercase text-white">
+                          YOU
+                        </span>
+                      )}
+                    </Link>
+                  )}
+                </td>
+                <td className="px-4 py-2.5 text-right font-extrabold text-ink tabular-nums">
+                  {entry.totalPoints}
+                </td>
+                <td className="hidden md:table-cell px-4 py-2.5 text-right text-win-ink tabular-nums">
+                  {entry.exactScores}
+                </td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
+      {compact && moreCount > 0 && (
+        <Link
+          href={`/play/${code}/leaderboard`}
+          className="block border-t border-line px-4 py-2.5 text-center text-[11px] font-bold text-navy hover:bg-paper"
+        >
+          + {moreCount} more
+        </Link>
+      )}
     </div>
   )
 }

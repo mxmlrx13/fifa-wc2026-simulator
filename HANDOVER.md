@@ -34,16 +34,7 @@ Persisted to `localStorage` under key `fifa-wc2026-simulator-state`. Hydrated cl
 
 ### Styling
 
-Tailwind CSS v4 via `@tailwindcss/postcss`. No component library. Custom CSS properties defined in `app/globals.css`:
-
-```
---color-accent: #a3882a    (gold)
---color-neon-blue: #2563eb
---color-neon-green: #059669
---color-neon-red: #dc2626
-```
-
-Custom classes: `.glass-card` (card styling), `.glow-accent` / `.glow-green` / `.glow-blue` (box-shadow glows), `.animate-fadeIn` / `.animate-slideUp` / `.animate-pulse-glow`.
+Tailwind CSS v4 via `@tailwindcss/postcss`. No component library. Custom CSS properties defined in `app/globals.css` using the Tricolore Editorial design system (see section 14).
 
 No dark mode. No CSS modules. No styled-components.
 
@@ -75,7 +66,7 @@ Environment variables required on Netlify:
 app/
   layout.tsx                          Root layout. Wraps app in TournamentProvider + Navbar.
   page.tsx                            Landing page. Shows champion if bracket complete, else hero + nav.
-  globals.css                         Tailwind theme vars, custom classes, animations.
+  globals.css                         Tailwind v4 theme: Tricolore Editorial tokens, animations.
 
   groups/
     page.tsx                          All 12 groups rendered as GroupCard list.
@@ -92,11 +83,12 @@ app/
     join/page.tsx                     Renders JoinGameForm. Reads ?code= from URL.
 
     [code]/
-      page.tsx                        Game dashboard. Player list, leaderboard, action buttons.
+      page.tsx                        Phase-aware dashboard (predicting/live/finished).
       predict/page.tsx                Tabbed prediction interface (Groups/Standings/Knockout).
       results/page.tsx                Host-only. Batch selector + score entry for real results.
-      compare/page.tsx                Side-by-side prediction comparison (locked games only).
-      leaderboard/page.tsx            Full leaderboard page.
+      compare/page.tsx                Side-by-side prediction comparison (locked/scored rounds only).
+      leaderboard/page.tsx            Full leaderboard page with you-row highlighting.
+      breakdown/page.tsx              Per-player score breakdown with round cards and PointsChips.
       recover/page.tsx                Recovery page: token validation + session rebind.
 
   api/games/
@@ -104,11 +96,13 @@ app/
     [code]/
       route.ts                        GET: game details + players + rounds + current player.
       join/route.ts                   POST: add player to game.
-      predictions/route.ts            GET: fetch predictions (round-based visibility). POST: save predictions (round-based validation).
-      results/route.ts                POST: enter results + compute scores + auto round transitions + champion bonus.
-      round/route.ts                  PATCH: lock_round / unlock_round / transfer_host per prediction round.
+      predictions/route.ts            GET: fetch predictions (round-based visibility, completion counts). POST: save predictions.
+      results/route.ts                GET: load existing results for a batch. POST: enter results + compute scores + auto round transitions + champion bonus.
+      results/status/route.ts         GET: per-batch completion counts (entered/total).
+      round/route.ts                  PATCH: lock_round / unlock_round / open_round / transfer_host.
       bracket/route.ts                GET: compute actual bracket from official results.
       recover/route.ts                POST: rebind player auth_id via recovery token.
+      scores/route.ts                 GET: per-match scores + predictions + results for breakdown view. Supports ?playerId= for viewing other players.
       players/[playerId]/route.ts     DELETE: remove player (host) or leave (self).
       leaderboard/route.ts            GET: aggregated, ranked leaderboard (includes champion bonus).
 
@@ -133,11 +127,12 @@ components/
     CreateGameForm.tsx                Inputs: game name, display name. POST to /api/games.
     JoinGameForm.tsx                  Inputs: 6-char code, display name. POST to /api/games/[code]/join.
     GameCodeDisplay.tsx               Large centered code display with copy button.
-    PlayerList.tsx                    Vertical player list. Host badge. Current user highlight.
+    PlayerList.tsx                    Player list with Modal confirms for remove/transfer/leave. Completion counts (n/72).
     RoundControls.tsx                 Per-round status badges. Lock/unlock buttons (host only).
-    LeaderboardTable.tsx              Ranked table. Compact (top 5) or full mode. Realtime.
-    PredictionComparison.tsx          Match × player table. Scores for groups, winner for knockout.
+    LeaderboardTable.tsx              Ranked table. Compact (top 3 + you) or full mode. You-row highlighting. Realtime.
+    PredictionComparison.tsx          Match × player table. Frozen first column. Scores for groups, winner for knockout.
     PredictionProvider.tsx            Local TournamentContext wrapper for multiplayer predictions.
+    ChampionPicker.tsx                48-team grid for champion pick. One selectable, red highlight.
     RecoveryLinkModal.tsx             Post-create/join modal with copy-able recovery URL.
     RecoveryLinkDisplay.tsx           Collapsible recovery link on dashboard.
 
@@ -146,8 +141,18 @@ components/
     ScoreInput.tsx                    Number input 0-99. No browser spinners.
     ResetButton.tsx                   Button with confirmation dialog before executing.
 
+  ui/
+    Button.tsx                        Primary/secondary/destructive button variants.
+    Badge.tsx                         Status badge (open/locked/scored/live). Pill-shaped.
+    Card.tsx                          Standard card wrapper with border + bg.
+    EmptyState.tsx                    Icon + label + message for empty lists.
+    Modal.tsx                         Centered overlay with title, content, confirm/cancel. slideUp animation.
+    PointsChip.tsx                    Tier-colored score chip (exact/gd/result/zero/pending).
+    SavePill.tsx                      Fixed save indicator for prediction pages.
+    Skeleton.tsx                      Loading skeleton (card/row variants).
+
 lib/
-  constants.ts                        Tournament structure constants (match IDs, code length, etc.)
+  constants.ts                        Tournament structure constants, prediction round mappings, knockout scoring.
   types.ts                            All TypeScript interfaces (Team, GroupMatch, KnockoutMatch, etc.)
   utils.ts                            cn() — clsx + tailwind-merge wrapper.
   store.tsx                           TournamentProvider, reducer, context, localStorage persistence.
@@ -165,9 +170,10 @@ lib/
     tiebreakers.ts                    FIFA 8-step tiebreaker cascade.
     best-third-place.ts              Rank 12 third-place teams, qualify top 8.
     knockout-bracket.ts              CSP backtracking for 3rd-place assignment. Slot resolution.
-    rounds.ts                         Round key ↔ match ID mapping. Labels.
+    rounds.ts                         RoundKey (result batches) ↔ match ID mapping. Labels.
     scoring.ts                        Tiered group scoring. computePoints() function.
-    __tests__/                        8 test files, 37 tests total.
+    host-actions.ts                   getHostNextAction() — pure function for host's single next action.
+    __tests__/                        10 test files, 65+ tests total.
 
   supabase/
     client.ts                         Browser-side Supabase client (anon key).
@@ -177,10 +183,14 @@ lib/
     game-fetch.ts                     Fetch wrapper with 401 retry (ensureAnonymousSession).
     hydrate-predictions.ts            Convert DB prediction rows → TournamentState for PredictionProvider.
 
+  hooks/
+    use-auto-save.ts                  Auto-save debounce hook for prediction pages.
+
 supabase-schema.sql                   Full schema: tables, constraints, RLS policies, migration notes.
 netlify.toml                          Netlify build config.
 vitest.config.ts                      Test runner config (jsdom environment).
 package.json                          Dependencies and scripts.
+QA_CHECKLIST.md                       Manual QA test script (~20 min, two browsers + phone).
 ```
 
 Orphaned files in the repo root (not part of the app): `proxy.ts`, `deno.lock`, `.plan/`.
@@ -230,6 +240,7 @@ When a game is created, 6 rows are seeded: `group` starts as `open`, the rest as
 | display_name | TEXT | NOT NULL | — |
 | is_host | BOOLEAN | | false |
 | champion_pick | TEXT | NULLABLE | — |
+| recovery_token | UUID | UNIQUE | gen_random_uuid() |
 | created_at | TIMESTAMPTZ | | now() |
 | | | UNIQUE(game_id, display_name) | |
 
@@ -303,22 +314,22 @@ players 1──* scores      (player_id FK, CASCADE delete)
 All tables have RLS enabled. All current policies are fully permissive:
 
 ```sql
--- Every table has these three policies (or two for read-only tables):
 CREATE POLICY "Anyone can read ..." ON <table> FOR SELECT USING (true);
 CREATE POLICY "Anyone can insert ..." ON <table> FOR INSERT WITH CHECK (true);
 CREATE POLICY "Anyone can update ..." ON <table> FOR UPDATE USING (true);
 ```
 
-Access control is enforced in the API routes (checking `is_host`, round status, `auth_id`), not at the database level. This means a user with the anon key could bypass the API and write directly to Supabase. See section 7 for details.
+Access control is enforced in the API routes (checking `is_host`, round status, `auth_id`), not at the database level.
 
 ### Realtime
 
-Enabled on `games`, `scores`, and `game_rounds` tables:
+Enabled on `games`, `scores`, `game_rounds`, and `players` tables:
 
 ```sql
 ALTER PUBLICATION supabase_realtime ADD TABLE games;
 ALTER PUBLICATION supabase_realtime ADD TABLE scores;
 ALTER PUBLICATION supabase_realtime ADD TABLE game_rounds;
+ALTER PUBLICATION supabase_realtime ADD TABLE players;
 ```
 
 ---
@@ -329,23 +340,14 @@ ALTER PUBLICATION supabase_realtime ADD TABLE game_rounds;
 
 Implemented in `lib/engine/scoring.ts`, function `computePoints(predictedHome, predictedAway, actualHome, actualAway)`.
 
-Determines the "result" of each score pair using `Math.sign(home - away)`:
-- `+1` = home win
-- `0` = draw
-- `-1` = away win
+| Tier | Condition | Points |
+|------|-----------|--------|
+| Exact | `pH === aH && pA === aA` | 5 |
+| Result + GD | Result matches AND `(pH - pA) === (aH - aA)` | 3 |
+| Result only | Result matches, GD differs | 1 |
+| Wrong | Result doesn't match | 0 |
 
-Four tiers:
-
-| Tier | Condition | Points | Example |
-|------|-----------|--------|---------|
-| Exact | `pH === aH && pA === aA` | 5 | Predict 2-1, actual 2-1 |
-| Result + GD | Result matches AND `(pH - pA) === (aH - aA)` | 3 | Predict 3-1, actual 2-0 |
-| Result only | Result matches, GD differs | 1 | Predict 1-0, actual 3-1 |
-| Wrong | Result doesn't match | 0 | Predict 1-0, actual 0-2 |
-
-The function returns `{ points: number, reason: 'exact' | 'result_gd' | 'result' | 'wrong' }`.
-
-Edge case: if `predictedHome` or `predictedAway` is null, the player gets 0 points. The results API handles this by checking for null before calling `computePoints()`.
+Returns `{ points: number, reason: 'exact' | 'result_gd' | 'result' | 'wrong' }`.
 
 ### Knockout Matches (match IDs 73–104)
 
@@ -360,119 +362,66 @@ Escalating points per round, defined in `lib/constants.ts`:
 | Third-place match | 103 | 6 |
 | Final | 104 | 8 |
 
-Implemented via `getKnockoutPointsForMatch(matchId)` which checks `MATCH_POINT_OVERRIDES` first, then falls back to `KNOCKOUT_POINTS[round]`.
-
-No partial credit. No bonus for predicting the correct score of a knockout match (scores aren't predicted for knockout matches — only the winner).
-
-**Knockout draw validation:** The results API rejects (400) any knockout batch submission where a match has `homeScore === awayScore` and no `winnerId`. The response includes `{ error: "...", matchIds: [73, 75] }` listing the offending match IDs.
+Implemented via `getKnockoutPointsForMatch(matchId)`. No partial credit.
 
 ### Champion Bonus
 
-10 points for correctly predicting the tournament winner. The champion pick is stored in `players.champion_pick` and can be set while the `group` round is open. When match 104 (the final) result is entered, the system awards the bonus by inserting a score row with `match_id = 0` (sentinel `CHAMPION_BONUS_MATCH_ID`).
+10 points for correctly predicting the tournament winner. Stored in `players.champion_pick`. Awarded when match 104 result is entered via `match_id = 0` score row.
 
 ### Leaderboard Aggregation
 
-In `app/api/games/[code]/leaderboard/route.ts`:
+1. Sum `points` for `totalPoints` (including champion bonus)
+2. Count exact scores (5-pt predictions) and correct results (any points > 0)
+3. Sort by: `totalPoints` desc → `exactScores` desc → `correctResults` desc
+4. Assign shared ranks (e.g., 1, 2, 2, 4)
 
-1. Query all scores for the game (including `match_id = 0` champion bonus rows)
-2. Group by player_id
-3. Sum `points` for `totalPoints`
-4. For `match_id = 0`: track as `championBonus` (not counted in exactScores/correctResults)
-5. For other matches: count rows where `points === 5` for `exactScores`, `points > 0` for `correctResults`
-6. Sort by: `totalPoints` desc → `exactScores` desc → `correctResults` desc
-7. Assign shared ranks: players tied on all three criteria get the same rank number (e.g., 1, 2, 2, 4 — rank 3 is skipped)
-8. Each entry includes `rank` and `championBonus` fields
+### Theoretical Maximum: 496
 
-### Theoretical Maximums
-
-- 72 group matches × 5 pts = 360
+- 72 group × 5 = 360
 - R32: 16 × 3 = 48, R16: 8 × 4 = 32, QF: 4 × 5 = 20, SF: 2 × 6 = 12, 3rd: 6, Final: 8 → 126
 - Champion bonus: 10
-- Total maximum: 496
 
 ---
 
-## 5. Auth and Group/Session Model
+## 5. Auth and Session Model
 
 ### Authentication
 
 Anonymous Supabase sessions. No email, no password, no OAuth.
 
-`lib/supabase/auth.ts` calls `supabase.auth.getUser()`. If no session exists, calls `supabase.auth.signInAnonymously()`. The returned `user.id` (a UUID) is stored as `auth_id` in the `players` table.
-
-Sessions are browser-specific. Players can recover access from a different device/browser using their recovery link (see below).
+`lib/supabase/auth.ts` calls `supabase.auth.getUser()`. If no session exists, calls `supabase.auth.signInAnonymously()`. The returned `user.id` is stored as `auth_id` in `players`.
 
 ### 401 Resilience
 
-`lib/supabase/game-fetch.ts` provides a `gameFetch()` wrapper used by the `useGame` hook. On a 401 response, it calls `ensureAnonymousSession()` once and retries the request. This handles the common case where a session expired silently. The `useGame` hook uses this wrapper for its API calls.
+`lib/supabase/game-fetch.ts` wraps fetch with automatic retry: on 401, calls `ensureAnonymousSession()` then retries once.
 
 ### Recovery Links
 
-Each player row has a `recovery_token` (UUID, unique, auto-generated). After creating or joining a game, a modal shows the recovery URL:
-
-```
-/play/[code]/recover?token=<recovery_token>
-```
-
-The player saves this link. The dashboard also shows a collapsible "Your Recovery Link" section.
-
-**Recovery flow** (POST `/api/games/[code]/recover`):
-1. Caller provides `{ token }` in request body
-2. Server validates the token belongs to a player in this game
-3. Updates that player's `auth_id` to the caller's current anonymous session ID
-4. The old session (if it still exists somewhere) simply no longer maps to any player
-
-This allows recovering on a new device, new browser, or after clearing cookies.
+Each player has a `recovery_token` (UUID). Recovery URL: `/play/[code]/recover?token=<token>`. POST to `/api/games/[code]/recover` updates `auth_id` to the caller's session.
 
 ### Creating a Game
 
-POST `/api/games` with `{ name, displayName }`.
-
-1. Server calls `supabase.auth.getUser()` to get the caller's anonymous user ID
-2. Generates a 6-character random uppercase alphanumeric code (retries up to 5 times if collision)
-3. Inserts a row in `games`
-4. Inserts a row in `players` with `is_host: true` and the caller's `auth_id`
-5. Seeds 6 `game_rounds` rows
-6. Returns `{ code, gameId, recoveryToken }`
+POST `/api/games` with `{ name, displayName }`. Generates 6-char code, seeds 6 `game_rounds` rows, returns `{ code, gameId, recoveryToken }`.
 
 ### Joining a Game
 
-POST `/api/games/[code]/join` with `{ displayName }`.
-
-1. Looks up the game by code (case-insensitive: `.eq('code', code.toUpperCase())`)
-2. Gets caller's `auth_id`
-3. Checks if the player is already in the game (same `auth_id` + `game_id`)
-4. Inserts a row in `players` with `is_host: false`
-5. Display name must be unique within the game (enforced by DB unique constraint on `game_id, display_name`)
-6. Returns `{ playerId, recoveryToken }`
+POST `/api/games/[code]/join` with `{ displayName }`. Display name must be unique within the game.
 
 ### Host Permissions and Transfer
 
-The `is_host` flag on the `players` table determines host status. Exactly one player per game is the host, enforced by a partial unique index: `CREATE UNIQUE INDEX one_host_per_game ON players (game_id) WHERE is_host`.
+`is_host` flag determines host status. Partial unique index ensures exactly one host per game.
 
-Host-only actions (enforced in API routes by querying `is_host`):
-- Lock/unlock prediction rounds (PATCH `/api/games/[code]/round` with `action: 'lock_round'` or `'unlock_round'`)
-- Enter official results (POST `/api/games/[code]/results`)
-- Transfer host status (PATCH `/api/games/[code]/round` with `action: 'transfer_host'`, `playerId`)
-- Remove other players (DELETE `/api/games/[code]/players/[playerId]`)
+Host-only actions:
+- Lock/unlock/open prediction rounds
+- Enter official results
+- Transfer host status
+- Remove other players
 
-**Host transfer:** The current host sends `{ action: 'transfer_host', playerId: '<target>' }`. The API sets `is_host = false` on the current host and `is_host = true` on the target, with rollback if the second update fails. The `one_host_per_game` index ensures the invariant holds even under concurrent calls. The dashboard shows a star icon per player row (host only) to trigger transfer with a confirmation dialog.
+Host transfer: PATCH `/api/games/[code]/round` with `{ action: 'transfer_host', playerId }`. The `one_host_per_game` index ensures the invariant.
 
 ### Player Removal
 
-DELETE `/api/games/[code]/players/[playerId]` — allowed when:
-- Caller is the host removing someone else (not self)
-- Caller is the player themselves (leaving the game)
-
-The host cannot remove/leave themselves — they must transfer host first (returns 400 with a message). Cascading FKs clean up predictions and scores automatically. The dashboard shows a remove icon per player (host), and a "Leave" button for non-host self.
-
-### Group Size
-
-No enforced limit. The `players` table has no cap on rows per `game_id`. The UI and API will work with any number of players, though the leaderboard and comparison table will become unwieldy beyond ~20 players.
-
-### Realtime Player Updates
-
-The `players` table is in the Supabase realtime publication. The `useGame` hook subscribes to INSERT/UPDATE/DELETE events on `players` (filtered by `game_id`), so the player list updates live when someone joins, leaves, or host transfers.
+DELETE `/api/games/[code]/players/[playerId]`. Host cannot leave without transferring first (returns 400). Cascading FKs clean up predictions and scores.
 
 ---
 
@@ -481,8 +430,7 @@ The `players` table is in the Supabase realtime publication. The `useGame` hook 
 ### Step-by-step
 
 1. Host navigates to `/play/[code]/results`
-2. Page loads: verifies the current user is the host. Non-hosts see an error message.
-3. Host selects a batch from a row of buttons:
+2. Selects a batch from pills (batch pills show per-batch completion state):
 
 | Batch Key | Label | Match IDs | Count |
 |-----------|-------|-----------|-------|
@@ -495,128 +443,317 @@ The `players` table is in the Supabase realtime publication. The `useGame` hook 
 | sf | Semi-Finals | 101–102 | 2 |
 | final | Final | 103–104 | 2 |
 
-4. Page renders one row per match in the batch. Each row shows:
-   - Match number (e.g., "M1")
-   - Home team flag + code (or slot label like "Winner M73" for unresolved knockout matches)
-   - Two ScoreInput fields
-   - Away team flag + code
-5. For knockout batches: if home and away scores are equal (penalty scenario), a winner picker appears below the match row with buttons for each team
-6. Host fills in scores and clicks "Submit N Results"
+3. Existing results for the batch are loaded and pre-populated in inputs
+4. For knockout ties: winner picker appears (two team buttons)
+5. Host clicks "Submit N Results"
 
 ### Server-side processing (POST `/api/games/[code]/results`)
 
 1. Verify caller is host
-2. Read `results` array and `batch` from request body
-3. Validate `batch` is a known round key — if invalid, return 400 with error message
-4. **Round status check**: verify the prediction round for this batch is `locked` or `scored` — otherwise return 400
-5. Get valid match IDs for the batch via `getMatchIdsForRound(batch)`
-6. Filter results to only include match IDs in the valid set
-7. Determine if batch is knockout (`!batch.startsWith('group_md')`)
-8. For knockout batches: check for tied matches without `winnerId` — if any, return 400 with the list of offending match IDs
-9. For knockout results with explicit winner: use `winnerId`; for decisive scores: infer winner from score
-10. Upsert into `official_results` table (on conflict: `game_id, match_id`)
-11. Fetch all predictions from `predictions` table for the batch's match IDs
-12. For each prediction:
-    - **Group match**: call `computePoints(predicted, actual)` → 0/1/3/5 points
-    - **Knockout match**: compare `prediction.winner_id` to `result.winner_id` → escalating points (3/4/5/6/8) via `getKnockoutPointsForMatch(matchId)`, or 0 if wrong
-    - If prediction has null scores (player didn't fill in), → 0 points
-    - Score rows include `predicted_winner_id` and `actual_winner_id` for knockout matches
-13. Upsert into `scores` table (on conflict: `player_id, game_id, match_id`)
-14. **Champion bonus**: if match 104 (final) was in this batch, look up all players' `champion_pick` and award 10 points (or 0) via a `match_id = 0` score row
-15. **Automatic round transition**: if all matches in the prediction round now have results, mark the round as `scored` and open the next `pending` round
-16. Return `{ resultsEntered: N, scoresComputed: M, championBonusAwarded: K }`
-
-### What triggers leaderboard updates
-
-The `LeaderboardTable` component subscribes to Supabase Realtime INSERT events on the `scores` table. When step 10 above inserts/updates rows, all connected clients' leaderboards re-fetch automatically.
+2. Validate `batch` key and round status (must be `locked` or `scored`)
+3. Reject knockout draws without `winnerId` (400)
+4. Upsert `official_results`
+5. Compute scores for all players: group matches use `computePoints()`, knockout matches compare `winner_id` for escalating points
+6. Upsert `scores`
+7. Champion bonus: if final result entered, award `match_id = 0` rows
+8. Auto-transition: if all matches in prediction round have results, mark `scored` and open next `pending` round
+9. Return `{ resultsEntered, scoresComputed, championBonusAwarded }`
 
 ### Re-entering results
 
-Results can be re-submitted. The upsert on `official_results` and `scores` overwrites previous values. Scores are recomputed from scratch. This allows the host to correct mistakes.
+Results can be re-submitted. Upsert overwrites previous values and recomputes scores.
 
 ---
 
-## 7. Known Bugs, TODOs, and Fragile Code
+## 7. Dashboard Phases
+
+The game dashboard (`/play/[code]`) renders one of three layouts based on round state:
+
+### Phase derivation
+
+```typescript
+function derivePhase(rounds): 'predicting' | 'live' | 'finished' {
+  if (rounds.length === 0) return 'predicting'
+  if (rounds.every(r => r.status === 'scored')) return 'finished'
+  if (rounds.some(r => r.status === 'locked' || r.status === 'scored')) return 'live'
+  return 'predicting'
+}
+```
+
+### Predicting
+
+- Hero card: game code (Fraunces, large), tap-to-copy, share hint
+- Primary CTA: "Enter Predictions"
+- Player list with completion counts (n/72)
+- Round timeline (Group = open, rest = pending)
+- Host: destructive lock button with modal confirm
+
+### Live
+
+- Compact leaderboard: top 3 + current user (if outside top 3), "+ n more" link
+- Contextual primary CTA: host → enter results / lock next round / open next round; player → enter picks for open round or "View my predictions"
+- Round timeline with status colors
+- Links row: Breakdown · Compare · Full Leaderboard
+
+### Finished
+
+- Celebration card: "Tournament Complete" + game name (Fraunces 28px)
+- Full leaderboard with final standings
+- Links: Breakdown · Compare
+
+### Host Action Priority
+
+`getHostNextAction(rounds)` is a pure function in `lib/engine/host-actions.ts` that returns exactly one action:
+1. Lock an open round
+2. Enter results for a locked round
+3. Open the next pending round (if predecessor is scored)
+4. Finished (all rounds scored)
+
+---
+
+## 8. Two Round-Key Systems
+
+There are two overlapping round-key systems:
+
+### Prediction Rounds (`PredictionRoundKey`)
+
+Defined in `lib/constants.ts`. These track the lifecycle of player predictions:
+
+```
+'group' | 'r32' | 'r16' | 'qf' | 'sf' | 'final'
+```
+
+Used in `game_rounds` table, round transitions, prediction visibility.
+
+### Result Batches (`RoundKey`)
+
+Defined in `lib/engine/rounds.ts`. These are the batches for entering official results:
+
+```
+'group_md1' | 'group_md2' | 'group_md3' | 'r32' | 'r16' | 'qf' | 'sf' | 'final'
+```
+
+The group prediction round maps to three result batches (MD1/MD2/MD3). Knockout rounds are 1:1.
+
+`getPredictionRoundForMatchId()` maps match IDs → prediction round. `getRoundForMatchId()` maps match IDs → result batch.
+
+---
+
+## 9. Known Issues and Fragile Code
 
 ### Bugs
 
-**Session expiry is partially handled.** The `gameFetch()` wrapper retries on 401 after calling `ensureAnonymousSession()`. This recovers from expired sessions for data fetches. However, if the new session doesn't map to any player (e.g., the browser was wiped), the user needs their recovery link to rebind their player identity.
+**Session expiry is partially handled.** `gameFetch()` retries on 401, but if the new session doesn't map to any player, the user needs their recovery link.
 
 ### Fragile Code
 
-**Code generation race condition.** Two simultaneous game creation requests could generate the same 6-character code. The check-then-insert pattern is not atomic. With 36^6 = ~2.2 billion possible codes, the probability is negligible, but the code only retries `CODE_GENERATION_RETRIES` (5) times and doesn't catch the unique constraint violation.
+**Code generation race condition.** Two simultaneous game creation requests could generate the same code. The probability is negligible (36^6 ≈ 2.2B codes) but the code doesn't catch the unique constraint violation.
 
-**RLS policies are fully open.** All tables allow all operations for all users. A user who knows the Supabase URL and anon key (both are in client-side code) can directly insert/update/delete any row in any table. They could modify other players' predictions, change round statuses, or insert fake scores. Access control exists only at the API route level.
+**RLS policies are fully open.** All tables allow all operations for all users. A user with the anon key could bypass API routes and modify any data directly.
 
-**Hydrate-predictions doesn't validate match IDs.** The `hydratePredictions()` function accepts any array of prediction rows and maps them onto the tournament state. Out-of-bounds match IDs (e.g., 105, -1) are silently dropped for group matches but could populate invalid entries in `knockoutPicks`.
+**Hydrate-predictions doesn't validate match IDs.** Out-of-bounds match IDs could populate invalid entries in `knockoutPicks`.
 
-### Fixed in this pass (previously listed as bugs/fragile)
+### React Compiler lint warnings
 
-**Knockout draw-without-winner** — The results API now returns 400 with the list of offending match IDs when a knockout match is tied and no `winnerId` is provided. The results page disables the submit button and shows an inline red prompt on each offending row.
-
-**Leaderboard tiebreakers** — Sort now uses three criteria (total points → exact scores → correct results) with shared rank assignment (e.g., 1, 2, 2, 4). The `rank` field is returned in the API response and rendered in the UI.
-
-**Magic numbers** — All tournament structure constants (`GROUP_MATCH_MAX_ID`, `TOTAL_MATCHES`, `GAME_CODE_LENGTH`, `CODE_GENERATION_RETRIES`, `QUALIFIED_THIRD_PLACE_COUNT`, `THIRD_PLACE_MATCH_ID`, `FINAL_MATCH_ID`) are now in `lib/constants.ts` and referenced everywhere.
-
-**Batch validation** — The results API now validates the batch key against `getAllRounds()` and returns 400 with a descriptive error if invalid.
-
-**Non-null assertion in join route** — Replaced `player!.id` with an explicit null check that returns 500 with an error message.
-
-**Silent error swallowing** — All `catch {}` blocks in `store.tsx`, `server.ts`, and `use-game.ts` now call `console.error()`. The `use-game.ts` hook includes the error message in the visible error state instead of a generic string.
-
-**Third-place match labeling** — The results page now shows distinct labels ("Third-place match" / "Final") above matches 103 and 104.
+The React compiler flags `setState` calls at the top of `useEffect` bodies in several files (breakdown, results, LeaderboardTable, PredictionComparison, MatchScoreInput, store.tsx). These are the standard data-fetching pattern and work correctly at runtime. The compiler's strict mode prefers `startTransition` but this is a low-priority refactor.
 
 ### Hacky / Non-obvious
 
-**Context shadowing pattern.** The multiplayer predict page works by rendering a `PredictionProvider` that creates a new `TournamentContext.Provider`, shadowing the global one from `layout.tsx`. This means the same components work in both solo and multiplayer mode without changes. It's clever but non-obvious — someone editing `GroupCard` won't immediately know it can receive state from two different providers.
+**Context shadowing pattern.** `PredictionProvider` shadows `TournamentContext` from `layout.tsx`. Components work in both solo and multiplayer mode without changes, but someone editing `GroupCard` won't immediately know it can receive state from two different providers.
 
-**Round transition timing.** When all results for a prediction round are entered, the round auto-transitions to `scored` and the next round opens. This happens in the results POST handler. If the host enters results across multiple requests for the same batch, the transition only fires when the final result completes the round. The transition uses `eq('status', 'pending')` to avoid accidentally reopening a round that was already open/locked.
+**Round transition timing.** Auto-transitions happen in the results POST handler when the final result for a round is entered. The transition uses `eq('status', 'pending')` to avoid reopening already-open/locked rounds.
 
 ---
 
-## 8. What Is NOT Implemented
+## 10. What Is NOT Implemented
 
 ### Features
 
-- **No real-time auto-save for predictions.** Players must manually click save. If they close the tab, unsaved work is lost.
-- **No match schedule or deadlines.** No dates, times, or automatic locking based on kick-off.
-- **No notifications.** Players aren't notified when predictions are locked, results are entered, or the leaderboard changes.
-- **No game deletion.** Games persist indefinitely. No cleanup mechanism.
-- **No password/private games.** Any player with the code can join. No approval flow.
-- **No prediction summary/receipt.** After saving, there's no page showing "here's what you predicted."
-- **No score breakdown view.** The leaderboard shows total points but there's no per-match breakdown showing which predictions scored how many points.
-- **No mobile-optimized bracket.** The bracket renders on mobile but is cramped on small screens.
+- **No real-time auto-save for predictions.** Players must manually save.
+- **No match schedule or deadlines.** No automatic locking based on kick-off.
+- **No notifications.** No alerts for lock/results/leaderboard changes.
+- **No game deletion.** Games persist indefinitely.
+- **No password/private games.** Any player with the code can join.
+- **No prediction receipt.** No summary page after saving.
 - **No dark mode.**
-- **No internationalization.** English only. No i18n framework.
-- **No social sharing.** No share buttons, OG tags for link previews, or shareable result images.
-- **No admin panel.** Game management requires direct Supabase dashboard access.
-- **No export/import.** No way to export predictions or results as CSV/PDF.
-- **No fair play tiebreaker.** The FIFA tiebreaker cascade skips step 7 (disciplinary record).
+- **No internationalization.** English only.
+- **No social sharing.** No OG tags or share buttons.
+- **No admin panel.** Requires Supabase dashboard.
+- **No export/import.** No CSV/PDF export.
 
 ### Security
 
 - **No rate limiting** on any endpoint.
-- **No CAPTCHA** or bot protection.
-- **No input sanitization** beyond type checking. Display names, game names are inserted as-is.
-- **No CSRF protection** beyond what Next.js provides by default.
-- **Proper RLS policies** that check `auth.uid()` against `players.auth_id`.
+- **No input sanitization** beyond type checking.
+- **Proper RLS policies** that check `auth.uid()` are not yet implemented.
 
 ### Infrastructure
 
-- **No CI/CD.** Deployments are manual (`npx netlify-cli deploy --prod`).
-- **No error monitoring** (Sentry, LogRocket, etc.).
+- **No CI/CD.** Manual deployments.
+- **No error monitoring** (Sentry, etc.).
 - **No analytics.**
-- **No database backups** beyond Supabase's default plan.
-- **No staging environment.** One Supabase project, one Netlify site.
+- **No staging environment.**
 
 ---
 
-## Constraints to Know
+## 11. Constraints to Know
 
-**Primary device:** Desktop-first design. Works on mobile but the bracket view and comparison table are tight on small screens. Score inputs are usable on phone but entering 72+ scores on mobile is tedious.
+**Primary device:** Desktop-first design, works on mobile. Score inputs on phone are usable but entering 72+ scores is tedious.
 
-**Language:** English only. Team names are in English. No i18n.
+**Expected group size:** 2–20 players. Comparison table breaks layout beyond ~10 columns on desktop.
 
-**Expected group size:** Designed for 2–20 players. No hard limit, but the comparison table (players as columns) breaks layout beyond ~10 players on desktop. Leaderboard scales fine.
+**Prediction model:** Round-by-round. Group predictions are entered upfront. After host locks and results are entered, system auto-transitions to next round. Knockout rounds use the real bracket from official results. Champion pick is set during the group round.
 
-**Prediction model:** Round-by-round. Group predictions are entered upfront (group round starts as `open`). Once the host locks the group round and results are entered, the system auto-transitions to the next round. Knockout rounds are predicted on the real bracket (derived from actual results). Each round follows: `pending` → `open` (players predict) → `locked` (host locks) → `scored` (all results entered, auto-transition opens next round). Champion pick is set during the group round.
+---
+
+## 12. Testing
+
+### Test structure
+
+10 test files in `lib/engine/__tests__/`, 80+ tests covering:
+
+- `scoring.test.ts` — Group match scoring tiers (5/3/1/0)
+- `leaderboard.test.ts` — Tiebreaker ordering, shared ranks
+- `results-validation.test.ts` — Batch validation, knockout draw detection
+- `player-management.test.ts` — Removal permissions, host transfer, recovery tokens
+- `host-actions.test.ts` — Host action priority chain (14 tests)
+- `rounds.test.ts` — Round key mapping, match ID ranges
+- `tiebreakers.test.ts` — FIFA 8-step tiebreaker cascade
+- `best-third-place.test.ts` — Third-place ranking and qualification
+- `knockout-bracket.test.ts` — CSP backtracking for bracket assignment
+- `group-standings.test.ts` — Group table calculation
+- `full-tournament-simulation.test.ts` — End-to-end simulation with 4 players, 104 matches, verified against naive scoring
+- `api-integration.test.ts` — API-level validation logic: prediction round gating, lock transitions, result entry, auto-transitions, champion bonus
+- `ui-smoke.test.ts` — Static analysis: no bare "Loading...", no deprecated field names, no old design system classes
+
+### Running tests
+
+```bash
+npm test          # vitest run
+npm run build     # Next.js production build
+npm run lint      # ESLint with React compiler
+```
+
+### Manual QA
+
+See `QA_CHECKLIST.md` for a 20-minute manual test script covering the full tournament flow.
+
+---
+
+## 13. API Reference
+
+### Game lifecycle
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/games` | POST | Create game |
+| `/api/games/[code]` | GET | Game details + players + rounds |
+| `/api/games/[code]/join` | POST | Join game |
+| `/api/games/[code]/recover` | POST | Recover access via token |
+
+### Predictions
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/games/[code]/predictions` | POST | Save predictions |
+| `/api/games/[code]/predictions` | GET | Fetch predictions (visibility-filtered). `?round=` filter, `?completion=true` for counts |
+
+### Results & Scoring
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/games/[code]/results` | POST | Enter results + compute scores |
+| `/api/games/[code]/results` | GET | Load existing results for a batch (`?batch=`) |
+| `/api/games/[code]/results/status` | GET | Per-batch completion counts |
+| `/api/games/[code]/scores` | GET | Per-match breakdown. `?playerId=` for other players |
+| `/api/games/[code]/leaderboard` | GET | Aggregated ranked leaderboard |
+
+### Game management
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/games/[code]/round` | PATCH | `lock_round`, `unlock_round`, `open_round`, `transfer_host` |
+| `/api/games/[code]/players/[id]` | DELETE | Remove player or leave game |
+| `/api/games/[code]/bracket` | GET | Computed bracket from official results |
+
+---
+
+## 14. Design System — Tricolore Editorial
+
+### Overview
+
+The design system is called "Tricolore Editorial." Warm, paper-like backgrounds with editorial typography. Structure comes from borders and type hierarchy, not shadows or glows. Defined in `app/globals.css` and `design-refs/DESIGN_SPEC.md`.
+
+### Color Tokens
+
+```css
+/* Surfaces */
+--color-paper: #faf8f4;     /* Page background */
+--color-card: #ffffff;       /* Card background */
+--color-line: #e9e4da;       /* All borders, 1px */
+--color-input: #fcfbf8;      /* Input fields */
+
+/* Ink */
+--color-ink: #19233f;        /* Primary text (navy) */
+--color-muted: #8a8f9e;      /* Secondary text */
+
+/* Accents */
+--color-navy: #19233f;       /* Primary buttons, active states */
+--color-red: #c1273a;        /* Scarce: current user, exact scores, destructive actions */
+--color-red-soft: #fdf3f2;   /* YOU row bg, selected states */
+
+/* Qualification */
+--color-win-soft/ink          /* Group winner (green) */
+--color-runner-soft/ink       /* Runner-up (blue) */
+--color-third-soft/ink        /* Third place (amber) */
+--color-out-soft/ink          /* Eliminated (gray) */
+
+/* Points tier chips */
+--color-tier-exact-*          /* 5pts: solid red/white */
+--color-tier-gd-*             /* 3pts: green-soft */
+--color-tier-result-*         /* 1pt: blue-soft */
+--color-tier-zero-*           /* 0pts: sand/muted */
+```
+
+### Typography
+
+| Role | Font | Size/Weight |
+|------|------|-------------|
+| Page title | Fraunces 700 | 24px |
+| Card title | Fraunces 700 | 17px |
+| Section label | Inter 700 | 10px UPPERCASE +0.09em |
+| Body | Inter 400/500 | 13.5px |
+| Scores/points | Inter 800 tabular | 14–15px |
+
+### Primitives (`components/ui/`)
+
+- **Button** — Primary (navy), secondary (outlined), destructive (red border/text)
+- **Badge** — Pill-shaped status (open=green, locked=gray, scored=green ✓, live=red)
+- **Modal** — Centered overlay, slideUp animation, confirm/cancel actions
+- **PointsChip** — Score display: exact=red, gd=green, result=blue, zero=sand, pending=muted
+- **EmptyState** — Centered icon + label + message
+- **Skeleton** — Loading placeholder (card/row variants)
+- **SavePill** — Fixed position save indicator
+
+### Design Rules
+
+1. **Red is scarce** — Only for: current user (YOU tag), exact-score chips, selected knockout picks, destructive actions. If a screen shows more than ~2 red elements, something is wrong.
+2. **One primary action per screen** — At most one navy button per screen.
+3. **France-neutral** — No team preselected, promoted, or styled differently. Flags appear only as data.
+4. **No gradients, glassmorphism, glows, or dark mode.**
+5. **Animations** — Only `fadeIn` (180ms) and `slideUp` (200ms). Respects `prefers-reduced-motion`.
+
+### Radii
+
+```css
+--radius-card: 14px;
+--radius-button: 12px;
+--radius-input: 9px;
+--radius-pill: 999px;
+```
+
+### Shell Structure
+
+**Mobile:** Bottom tab bar concept (per spec §4, not yet fully implemented as a separate component — navigation is via links on the dashboard).
+
+**Desktop:** Top in-game header with back link, game name + code, nav links. Content max-width varies by page (1080px for main, tighter for forms).

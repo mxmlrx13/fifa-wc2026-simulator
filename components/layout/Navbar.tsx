@@ -17,6 +17,9 @@ export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false)
   const { allGroupsComplete, champion, state } = useTournament()
 
+  // Don't render global navbar inside /play/[code]/*
+  if (/^\/play\/[A-Z0-9]{6}/i.test(pathname)) return null
+
   const completedMatches = state.groupMatches.filter(
     (m) => m.homeScore !== null && m.awayScore !== null
   ).length
@@ -31,7 +34,6 @@ export default function Navbar() {
     }
     if (step.num === 2) {
       if (champion) return 'done'
-      if (allGroupsComplete && pathname.startsWith('/knockout')) return 'current'
       if (allGroupsComplete) return 'current'
       return 'future'
     }
@@ -49,13 +51,13 @@ export default function Navbar() {
       : Math.round((completedMatches / totalMatches) * 50)
 
   return (
-    <nav className="relative z-50 border-b border-gray-200 bg-white/95 backdrop-blur-md">
+    <nav className="relative z-50 border-b-2 border-ink bg-card">
       <div className="mx-auto max-w-7xl px-4">
         <div className="flex h-14 items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
-            <span className="text-lg font-bold tracking-tight text-accent">WC 2026</span>
-            <span className="hidden text-xs text-gray-500 sm:inline">Simulator</span>
+            <span className="font-[family-name:var(--font-display)] text-lg font-bold tracking-tight text-ink">WC 2026</span>
+            <span className="hidden text-[11px] text-muted sm:inline">Simulator</span>
           </Link>
 
           {/* Desktop stepper */}
@@ -71,8 +73,8 @@ export default function Navbar() {
                     <div className={cn(
                       'mx-1 h-px w-6',
                       status === 'done' || (i === 1 && getStepStatus(steps[0]) === 'done')
-                        ? 'bg-neon-green/50'
-                        : 'bg-gray-200'
+                        ? 'bg-win-ink/30'
+                        : 'bg-line'
                     )} />
                   )}
                   {canClick ? (
@@ -80,24 +82,25 @@ export default function Navbar() {
                       href={step.href}
                       className={cn(
                         'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all',
-                        status === 'done' && 'text-neon-green',
-                        status === 'done' && !isActive && 'hover:bg-neon-green/10',
-                        status === 'current' && isActive && 'bg-accent/15 text-accent glow-accent',
-                        status === 'current' && !isActive && 'text-accent/70 hover:bg-accent/10'
+                        status === 'done' && 'text-win-ink',
+                        status === 'done' && !isActive && 'hover:bg-win-soft',
+                        status === 'current' && isActive && 'bg-navy text-paper',
+                        status === 'current' && !isActive && 'text-navy hover:bg-line/40'
                       )}
                     >
                       <span className={cn(
                         'flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold',
-                        status === 'done' && 'bg-neon-green/20 text-neon-green',
-                        status === 'current' && 'bg-accent/20 text-accent'
+                        status === 'done' && 'bg-win-soft text-win-ink',
+                        status === 'current' && isActive && 'bg-paper/20 text-paper',
+                        status === 'current' && !isActive && 'bg-navy/10 text-navy'
                       )}>
                         {status === 'done' ? '\u2713' : step.num}
                       </span>
                       {step.label}
                     </Link>
                   ) : (
-                    <span className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-gray-400">
-                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gray-100 text-[10px] font-bold text-gray-400">
+                    <span className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-muted">
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-out-soft text-[10px] font-bold text-muted">
                         {step.num}
                       </span>
                       {step.label}
@@ -115,26 +118,26 @@ export default function Navbar() {
               className={cn(
                 'rounded-full px-3 py-1.5 text-xs font-semibold transition-all',
                 pathname.startsWith('/play')
-                  ? 'bg-neon-green/15 text-neon-green'
-                  : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900',
+                  ? 'bg-navy text-paper'
+                  : 'text-muted hover:bg-line/40 hover:text-ink',
               )}
             >
               Play
             </Link>
             <div className="flex items-center gap-2">
-              <div className="h-1 w-16 overflow-hidden rounded-full bg-gray-200">
+              <div className="h-1 w-16 overflow-hidden rounded-full bg-line">
                 <div
-                  className="h-full rounded-full bg-accent transition-all duration-500"
+                  className="h-full rounded-full bg-navy transition-all duration-500"
                   style={{ width: `${progressPct}%` }}
                 />
               </div>
-              <span className="text-[10px] font-medium text-gray-500">{progressPct}%</span>
+              <span className="text-[10px] font-medium text-muted tabular-nums">{progressPct}%</span>
             </div>
           </div>
 
           {/* Mobile hamburger */}
           <button
-            className="inline-flex items-center justify-center rounded-md p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900 sm:hidden"
+            className="inline-flex items-center justify-center rounded-md p-2 text-muted hover:bg-line/40 hover:text-ink sm:hidden"
             onClick={() => setMenuOpen(!menuOpen)}
             aria-label="Toggle menu"
           >
@@ -150,11 +153,11 @@ export default function Navbar() {
 
         {/* Mobile menu */}
         {menuOpen && (
-          <div className="border-t border-gray-200 pb-3 pt-2 sm:hidden">
+          <div className="border-t border-line pb-3 pt-2 sm:hidden">
             <Link
               href="/"
               onClick={() => setMenuOpen(false)}
-              className="block rounded-md px-3 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+              className="block rounded-md px-3 py-2 text-sm font-medium text-muted hover:bg-line/40 hover:text-ink"
             >
               Home
             </Link>
@@ -169,8 +172,8 @@ export default function Navbar() {
                   className={cn(
                     'block rounded-md px-3 py-2 text-sm font-medium transition-colors',
                     pathname.startsWith(step.href)
-                      ? 'text-accent'
-                      : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
+                      ? 'text-navy font-bold'
+                      : 'text-muted hover:bg-line/40 hover:text-ink'
                   )}
                 >
                   {step.label}
@@ -178,7 +181,7 @@ export default function Navbar() {
               ) : (
                 <span
                   key={step.href}
-                  className="block rounded-md px-3 py-2 text-sm font-medium text-gray-400"
+                  className="block rounded-md px-3 py-2 text-sm font-medium text-muted/50"
                 >
                   {step.label}
                 </span>
@@ -187,7 +190,7 @@ export default function Navbar() {
             <Link
               href="/standings"
               onClick={() => setMenuOpen(false)}
-              className="block rounded-md px-3 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+              className="block rounded-md px-3 py-2 text-sm font-medium text-muted hover:bg-line/40 hover:text-ink"
             >
               Standings
             </Link>
@@ -197,21 +200,21 @@ export default function Navbar() {
               className={cn(
                 'block rounded-md px-3 py-2 text-sm font-medium transition-colors',
                 pathname.startsWith('/play')
-                  ? 'text-neon-green'
-                  : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900',
+                  ? 'text-navy font-bold'
+                  : 'text-muted hover:bg-line/40 hover:text-ink',
               )}
             >
               Play
             </Link>
             {/* Mobile progress */}
             <div className="mt-2 flex items-center gap-2 px-3">
-              <div className="h-1 flex-1 overflow-hidden rounded-full bg-gray-200">
+              <div className="h-1 flex-1 overflow-hidden rounded-full bg-line">
                 <div
-                  className="h-full rounded-full bg-accent transition-all duration-500"
+                  className="h-full rounded-full bg-navy transition-all duration-500"
                   style={{ width: `${progressPct}%` }}
                 />
               </div>
-              <span className="text-[10px] text-gray-500">{progressPct}%</span>
+              <span className="text-[10px] text-muted tabular-nums">{progressPct}%</span>
             </div>
           </div>
         )}

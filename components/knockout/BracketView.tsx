@@ -34,12 +34,11 @@ export default function BracketView({ matches }: BracketViewProps) {
                     <BracketRound round={round} matches={rm} />
                   </div>
 
-                  {/* Connector lines between rounds */}
                   {hasConnectors && (
                     <div className="flex flex-col justify-center self-stretch px-1">
                       {Array.from({ length: Math.floor(rm.length / 2) }).map((_, i) => {
-                        const matchHeight = 88 // approximate height of match card + gap
-                        const pairTop = i * 2 * matchHeight + 32 // offset for round header
+                        const matchHeight = 88
+                        const pairTop = i * 2 * matchHeight + 32
                         return (
                           <div
                             key={i}
@@ -49,12 +48,9 @@ export default function BracketView({ matches }: BracketViewProps) {
                               marginTop: i === 0 ? `${pairTop}px` : `${matchHeight}px`,
                             }}
                           >
-                            {/* Top arm */}
-                            <div className="absolute left-0 top-0 h-1/2 w-3 border-r border-t border-accent/20" />
-                            {/* Bottom arm */}
-                            <div className="absolute bottom-0 left-0 h-1/2 w-3 border-b border-r border-accent/20" />
-                            {/* Exit line */}
-                            <div className="absolute left-3 top-1/2 h-px w-3 bg-accent/20" />
+                            <div className="absolute left-0 top-0 h-1/2 w-3 border-r border-t border-line" />
+                            <div className="absolute bottom-0 left-0 h-1/2 w-3 border-b border-r border-line" />
+                            <div className="absolute left-3 top-1/2 h-px w-3 bg-line" />
                           </div>
                         )
                       })}

@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import Modal from '@/components/ui/Modal'
 
 interface Player {
   id: string
@@ -16,12 +17,43 @@ interface PlayerListProps {
   currentPlayerId?: string
   isHost: boolean
   onAction: () => void
+  showCompletion?: boolean
+  gameId?: string
 }
 
-export default function PlayerList({ code, players, currentPlayerId, isHost, onAction }: PlayerListProps) {
+export default function PlayerList({
+  code,
+  players,
+  currentPlayerId,
+  isHost,
+  onAction,
+  showCompletion,
+  gameId,
+}: PlayerListProps) {
   const router = useRouter()
-  const [confirming, setConfirming] = useState<{ type: 'remove' | 'leave' | 'transfer'; playerId: string } | null>(null)
+  const [confirming, setConfirming] = useState<{ type: 'remove' | 'leave' | 'transfer'; playerId: string; name: string } | null>(null)
   const [loading, setLoading] = useState(false)
+  const [completionCounts, setCompletionCounts] = useState<Record<string, number>>({})
+
+  // Fetch completion counts if needed
+  useEffect(() => {
+    if (!showCompletion || !gameId) return
+
+    async function fetchCounts() {
+      try {
+        const res = await fetch(`/api/games/${code}/predictions?completion=true`)
+        if (res.ok) {
+          const data = await res.json()
+          if (data.completionCounts) {
+            setCompletionCounts(data.completionCounts)
+          }
+        }
+      } catch {
+        // Silently fail
+      }
+    }
+    fetchCounts()
+  }, [showCompletion, gameId, code])
 
   async function handleRemove(playerId: string) {
     setLoading(true)
@@ -31,7 +63,6 @@ export default function PlayerList({ code, players, currentPlayerId, isHost, onA
       if (!res.ok) {
         alert(data.error ?? 'Failed to remove player')
       } else {
-        // If the player removed themselves, redirect
         if (playerId === currentPlayerId) {
           router.push('/play')
           return
@@ -65,41 +96,49 @@ export default function PlayerList({ code, players, currentPlayerId, isHost, onA
   }
 
   return (
-    <div className="glass-card p-4">
-      <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-500">
-        Players ({players.length})
-      </h3>
-      <div className="space-y-2">
-        {players.map((p) => {
-          const isSelf = p.id === currentPlayerId
-          const showConfirm = confirming?.playerId === p.id
+    <>
+      <div className="rounded-[var(--radius-card)] border border-line bg-card p-4">
+        <h3 className="mb-3 text-[10px] font-bold uppercase tracking-[0.09em] text-muted">
+          Players ({players.length})
+        </h3>
+        <div className="space-y-1">
+          {players.map((p) => {
+            const isSelf = p.id === currentPlayerId
+            const count = completionCounts[p.id]
 
-          return (
-            <div key={p.id}>
+            return (
               <div
+                key={p.id}
                 className={cn(
                   'flex items-center justify-between rounded-lg px-3 py-2',
-                  isSelf && 'bg-accent/10',
+                  isSelf && 'bg-red-soft',
                 )}
               >
-                <span className="text-sm font-medium">
+                <span className="text-sm font-medium text-ink">
                   {p.displayName}
                   {isSelf && (
-                    <span className="ml-1.5 text-xs text-accent">(you)</span>
+                    <span className="ml-1.5 rounded-[5px] bg-red px-1.5 py-0.5 text-[8.5px] font-extrabold uppercase text-white">
+                      YOU
+                    </span>
                   )}
                 </span>
                 <div className="flex items-center gap-1.5">
+                  {showCompletion && count !== undefined && (
+                    <span className="text-[11px] font-semibold tabular-nums text-muted">
+                      {count}/72
+                    </span>
+                  )}
+
                   {p.isHost && (
-                    <span className="rounded-full bg-accent/20 px-2 py-0.5 text-[10px] font-bold text-accent">
+                    <span className="rounded-[var(--radius-pill)] bg-out-soft px-2 py-0.5 text-[10px] font-bold text-muted">
                       HOST
                     </span>
                   )}
 
-                  {/* Host: make host button for non-host players */}
                   {isHost && !p.isHost && !isSelf && (
                     <button
-                      onClick={() => setConfirming({ type: 'transfer', playerId: p.id })}
-                      className="rounded px-1.5 py-0.5 text-[10px] font-bold text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                      onClick={() => setConfirming({ type: 'transfer', playerId: p.id, name: p.displayName })}
+                      className="rounded px-1.5 py-0.5 text-[10px] font-bold text-muted hover:bg-line/40 hover:text-ink"
                       title="Make host"
                     >
                       <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -108,11 +147,10 @@ export default function PlayerList({ code, players, currentPlayerId, isHost, onA
                     </button>
                   )}
 
-                  {/* Host: remove button for non-host players */}
                   {isHost && !p.isHost && !isSelf && (
                     <button
-                      onClick={() => setConfirming({ type: 'remove', playerId: p.id })}
-                      className="rounded px-1.5 py-0.5 text-[10px] font-bold text-gray-400 hover:bg-neon-red/10 hover:text-neon-red"
+                      onClick={() => setConfirming({ type: 'remove', playerId: p.id, name: p.displayName })}
+                      className="rounded px-1.5 py-0.5 text-[10px] font-bold text-muted hover:bg-red-soft hover:text-red"
                       title="Remove player"
                     >
                       <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -121,11 +159,10 @@ export default function PlayerList({ code, players, currentPlayerId, isHost, onA
                     </button>
                   )}
 
-                  {/* Non-host self: leave button */}
                   {isSelf && !p.isHost && (
                     <button
-                      onClick={() => setConfirming({ type: 'leave', playerId: p.id })}
-                      className="rounded px-1.5 py-0.5 text-[10px] font-bold text-gray-400 hover:bg-neon-red/10 hover:text-neon-red"
+                      onClick={() => setConfirming({ type: 'leave', playerId: p.id, name: p.displayName })}
+                      className="rounded px-1.5 py-0.5 text-[10px] font-bold text-muted hover:bg-red-soft hover:text-red"
                       title="Leave game"
                     >
                       Leave
@@ -133,52 +170,46 @@ export default function PlayerList({ code, players, currentPlayerId, isHost, onA
                   )}
                 </div>
               </div>
-
-              {/* Confirmation dialog */}
-              {showConfirm && (
-                <div className="mt-1 rounded-lg bg-gray-50 px-3 py-2 text-xs">
-                  {confirming.type === 'transfer' && (
-                    <p className="mb-2 text-gray-600">
-                      Make <strong>{p.displayName}</strong> the host? You will lose lock/results powers.
-                    </p>
-                  )}
-                  {confirming.type === 'remove' && (
-                    <p className="mb-2 text-gray-600">
-                      Remove <strong>{p.displayName}</strong>? Their predictions and scores will be deleted.
-                    </p>
-                  )}
-                  {confirming.type === 'leave' && (
-                    <p className="mb-2 text-gray-600">
-                      Leave this game? Your predictions and scores will be deleted.
-                    </p>
-                  )}
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => {
-                        if (confirming.type === 'transfer') handleTransfer(p.id)
-                        else handleRemove(p.id)
-                      }}
-                      disabled={loading}
-                      className={cn(
-                        'rounded px-2 py-1 text-[10px] font-bold text-white disabled:opacity-50',
-                        confirming.type === 'transfer' ? 'bg-accent' : 'bg-neon-red',
-                      )}
-                    >
-                      {loading ? '...' : 'Confirm'}
-                    </button>
-                    <button
-                      onClick={() => setConfirming(null)}
-                      className="rounded px-2 py-1 text-[10px] font-bold text-gray-500 hover:text-gray-700"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
       </div>
-    </div>
+
+      {confirming && (
+        <Modal
+          title={
+            confirming.type === 'transfer'
+              ? 'Transfer Host?'
+              : confirming.type === 'remove'
+                ? 'Remove Player?'
+                : 'Leave Game?'
+          }
+          confirmLabel={confirming.type === 'transfer' ? 'Transfer' : 'Confirm'}
+          confirmVariant={confirming.type === 'transfer' ? 'primary' : 'destructive'}
+          onConfirm={() => {
+            if (confirming.type === 'transfer') handleTransfer(confirming.playerId)
+            else handleRemove(confirming.playerId)
+          }}
+          onCancel={() => setConfirming(null)}
+          loading={loading}
+        >
+          {confirming.type === 'transfer' && (
+            <p>
+              Make <strong className="text-ink">{confirming.name}</strong> the host? You will lose lock and results powers.
+            </p>
+          )}
+          {confirming.type === 'remove' && (
+            <p>
+              Remove <strong className="text-ink">{confirming.name}</strong>? Their predictions and scores will be deleted.
+            </p>
+          )}
+          {confirming.type === 'leave' && (
+            <p>
+              Leave this game? Your predictions and scores will be deleted.
+            </p>
+          )}
+        </Modal>
+      )}
+    </>
   )
 }

@@ -262,6 +262,58 @@ export async function POST(
   })
 }
 
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ code: string }> },
+) {
+  const { code } = await params
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return Response.json({ error: 'Not authenticated' }, { status: 401 })
+  }
+
+  const { data: game } = await supabase
+    .from('games')
+    .select('id')
+    .eq('code', code.toUpperCase())
+    .single()
+
+  if (!game) {
+    return Response.json({ error: 'Game not found' }, { status: 404 })
+  }
+
+  // Verify host
+  const { data: hostPlayer } = await supabase
+    .from('players')
+    .select('is_host')
+    .eq('game_id', game.id)
+    .eq('auth_id', user.id)
+    .single()
+
+  if (!hostPlayer?.is_host) {
+    return Response.json({ error: 'Only the host can view results' }, { status: 403 })
+  }
+
+  const url = new URL(request.url)
+  const batch = url.searchParams.get('batch') as RoundKey | null
+
+  if (!batch) {
+    return Response.json({ results: [] })
+  }
+
+  const batchMatchIds = getMatchIdsForRound(batch)
+
+  const { data: existingResults } = await supabase
+    .from('official_results')
+    .select('match_id, home_score, away_score, winner_id')
+    .eq('game_id', game.id)
+    .in('match_id', batchMatchIds)
+
+  return Response.json({ results: existingResults ?? [] })
+}
+
 async function handleRoundTransition(
   supabase: Awaited<ReturnType<typeof createClient>>,
   gameId: string,

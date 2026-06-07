@@ -18,10 +18,10 @@ export default function ThirdPlaceTable({ results }: ThirdPlaceTableProps) {
   if (results.length === 0) return null
 
   return (
-    <div className="glass-card overflow-hidden">
+    <div className="rounded-[var(--radius-card)] border border-line bg-card overflow-hidden">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-gray-200 text-left text-[10px] uppercase tracking-wider text-gray-500">
+          <tr className="border-b border-line text-left text-[10px] font-bold uppercase tracking-[0.09em] text-muted">
             <th className="px-3 py-2.5">Rank</th>
             <th className="px-3 py-2.5">Group</th>
             <th className="px-3 py-2.5">Team</th>
@@ -32,7 +32,7 @@ export default function ThirdPlaceTable({ results }: ThirdPlaceTableProps) {
             <th className="px-3 py-2.5 text-center">GF</th>
             <th className="px-3 py-2.5 text-center">GA</th>
             <th className="px-3 py-2.5 text-center">GD</th>
-            <th className="px-3 py-2.5 text-center font-bold text-accent">Pts</th>
+            <th className="px-3 py-2.5 text-center font-bold text-ink">Pts</th>
             <th className="px-3 py-2.5">Status</th>
           </tr>
         </thead>
@@ -44,42 +44,42 @@ export default function ThirdPlaceTable({ results }: ThirdPlaceTableProps) {
               <tr
                 key={r.teamId}
                 className={cn(
-                  'border-b border-gray-200 transition-colors',
+                  'border-b border-line transition-colors',
                   r.qualified
-                    ? 'border-l-2 border-l-neon-green bg-neon-green/5'
-                    : 'text-gray-400 opacity-50'
+                    ? 'border-l-[3px] border-l-win-ink bg-win-soft'
+                    : 'text-out-ink opacity-50'
                 )}
               >
-                <td className="px-3 py-2 font-medium">{idx + 1}</td>
-                <td className="px-3 py-2 font-semibold text-accent">{r.groupId}</td>
+                <td className="px-3 py-2 font-medium tabular-nums">{idx + 1}</td>
+                <td className="px-3 py-2 font-semibold text-navy">{r.groupId}</td>
                 <td className="px-3 py-2 font-medium">
                   <span className="inline-flex items-center gap-1.5">
                     {team && <span className="text-sm">{flagEmoji(team.flagCode)}</span>}
                     {team?.name ?? r.teamId}
                   </span>
                 </td>
-                <td className="px-3 py-2 text-center">{s.played}</td>
-                <td className="px-3 py-2 text-center">{s.won}</td>
-                <td className="px-3 py-2 text-center">{s.drawn}</td>
-                <td className="px-3 py-2 text-center">{s.lost}</td>
-                <td className="px-3 py-2 text-center">{s.goalsFor}</td>
-                <td className="px-3 py-2 text-center">{s.goalsAgainst}</td>
-                <td className="px-3 py-2 text-center">
+                <td className="px-3 py-2 text-center tabular-nums">{s.played}</td>
+                <td className="px-3 py-2 text-center tabular-nums">{s.won}</td>
+                <td className="px-3 py-2 text-center tabular-nums">{s.drawn}</td>
+                <td className="px-3 py-2 text-center tabular-nums">{s.lost}</td>
+                <td className="px-3 py-2 text-center tabular-nums">{s.goalsFor}</td>
+                <td className="px-3 py-2 text-center tabular-nums">{s.goalsAgainst}</td>
+                <td className="px-3 py-2 text-center tabular-nums">
                   {s.goalDifference > 0 ? `+${s.goalDifference}` : s.goalDifference}
                 </td>
-                <td className="px-3 py-2 text-center font-bold text-accent">{s.points}</td>
+                <td className="px-3 py-2 text-center font-extrabold text-ink tabular-nums">{s.points}</td>
                 <td className="px-3 py-2">
                   {r.qualified ? (
-                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-neon-green">
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-win-ink">
                       Qualified
                       {r.matchSlot !== null && (
-                        <span className="text-[10px] text-neon-green/60">
+                        <span className="text-[10px] text-win-ink/60">
                           {' '}M{r.matchSlot}
                         </span>
                       )}
                     </span>
                   ) : (
-                    <span className="text-xs font-semibold text-gray-400">Eliminated</span>
+                    <span className="text-xs font-semibold text-out-ink">Eliminated</span>
                   )}
                 </td>
               </tr>

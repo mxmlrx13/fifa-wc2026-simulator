@@ -22,9 +22,9 @@ function flagEmoji(flagCode: string): string {
 }
 
 const pathConfig = {
-  winner: { label: 'Group Winners', glowClass: 'glow-green', borderClass: 'border-neon-green/30', bgClass: 'bg-neon-green/5' },
-  'runner-up': { label: 'Runners-up', glowClass: 'glow-blue', borderClass: 'border-neon-blue/30', bgClass: 'bg-neon-blue/5' },
-  third: { label: 'Best Third-Place', glowClass: '', borderClass: 'border-amber-500/30', bgClass: 'bg-amber-500/5' },
+  winner: { label: 'Group Winners', borderClass: 'border-win-ink/30', bgClass: 'bg-win-soft' },
+  'runner-up': { label: 'Runners-up', borderClass: 'border-runner-ink/30', bgClass: 'bg-runner-soft' },
+  third: { label: 'Best Third-Place', borderClass: 'border-third-ink/30', bgClass: 'bg-third-soft' },
 } as const
 
 export default function QualifiedTeamsGrid({
@@ -70,7 +70,7 @@ export default function QualifiedTeamsGrid({
 
         return (
           <div key={path}>
-            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+            <h3 className="mb-3 text-[10px] font-bold uppercase tracking-[0.09em] text-muted">
               {config.label} ({teams.length})
             </h3>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
@@ -80,7 +80,7 @@ export default function QualifiedTeamsGrid({
                   <div
                     key={q.teamId}
                     className={cn(
-                      'glass-card flex items-center gap-2 rounded-lg border px-3 py-2.5',
+                      'flex items-center gap-2 rounded-[var(--radius-card)] border px-3 py-2.5',
                       config.borderClass,
                       config.bgClass
                     )}
@@ -89,10 +89,10 @@ export default function QualifiedTeamsGrid({
                       {team ? flagEmoji(team.flagCode) : '?'}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <span className="block truncate text-xs font-semibold text-foreground">
+                      <span className="block truncate text-xs font-semibold text-ink">
                         {team?.name ?? q.teamId}
                       </span>
-                      <span className="text-[10px] text-gray-500">Gr. {q.groupId}</span>
+                      <span className="text-[10px] text-muted">Gr. {q.groupId}</span>
                     </div>
                   </div>
                 )

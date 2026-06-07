@@ -52,21 +52,22 @@ function TeamRow({
       onClick={onClick}
       className={cn(
         'flex w-full items-center gap-2 px-3 py-2 text-left transition-all',
-        position === 'top' && 'border-b border-gray-200',
-        canPick && 'cursor-pointer hover:bg-gray-100',
+        position === 'top' && 'border-b border-line',
+        canPick && 'cursor-pointer hover:bg-paper',
         !canPick && 'cursor-default',
-        isWinner && 'border-l-2 border-l-accent bg-accent/10',
+        isWinner && 'bg-red-soft border-l-[1.5px] border-l-red',
         isLoser && 'opacity-50',
-        !isWinner && !isLoser && 'border-l-2 border-l-transparent'
+        !isWinner && !isLoser && 'border-l-[1.5px] border-l-transparent'
       )}
     >
       {team ? (
         <>
           <span className="text-base leading-none">{flagEmoji(team.flagCode)}</span>
           <span className="text-xs font-bold">{team.id}</span>
+          {isWinner && <span className="ml-auto text-xs text-red">{'\u2713'}</span>}
         </>
       ) : (
-        <span className="text-[10px] italic text-gray-400">{slotLabel(slot)}</span>
+        <span className="text-[10px] italic text-muted">{slotLabel(slot)}</span>
       )}
     </button>
   )
@@ -86,11 +87,11 @@ export default function KnockoutMatchCard({ match }: KnockoutMatchProps) {
 
   return (
     <div className={cn(
-      'w-52 glass-card overflow-hidden transition-all',
-      match.winnerId && 'glow-accent'
+      'w-52 rounded-[var(--radius-card)] border border-line bg-card overflow-hidden transition-all',
+      match.winnerId && 'border-red-line'
     )}>
       {/* Match header */}
-      <div className="border-b border-gray-200 bg-gray-50 px-2 py-1 text-center text-[10px] font-bold uppercase tracking-wider text-gray-500">
+      <div className="border-b border-line bg-paper px-2 py-1 text-center text-[10px] font-bold uppercase tracking-[0.09em] text-muted">
         M{match.id}
       </div>
 

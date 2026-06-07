@@ -1,0 +1,156 @@
+/* ============================================================
+   WC2026 Tipping — Direction A "Tricolore Editorial"
+   Design tokens. Authoritative source for all colors, type,
+   radii, shadows. Port these into app/globals.css (@theme for
+   Tailwind v4). Do not invent values outside this file.
+   ============================================================ */
+
+:root {
+  /* ---- surfaces ---- */
+  --color-paper:        #faf8f4;  /* page background (replaces #f8f9fb) */
+  --color-card:         #ffffff;  /* card background */
+  --color-line:         #e9e4da;  /* hairline borders, dividers */
+  --color-input:        #fcfbf8;  /* input backgrounds */
+
+  /* ---- ink ---- */
+  --color-ink:          #19233f;  /* primary text + primary actions (French navy) */
+  --color-muted:        #8a8f9e;  /* secondary text, labels, placeholders */
+
+  /* ---- accents ---- */
+  --color-navy:         #19233f;  /* workhorse accent: buttons, selected nav, save pill */
+  --color-red:          #c1273a;  /* scarce accent: YOU highlight, exact-score chip,
+                                     selected knockout pick, destructive actions.
+                                     BUDGET: max ~2 red elements visible per screen. */
+  --color-red-soft:     #fdf3f2;  /* red-tinted backgrounds (you-row, selected pick) */
+  --color-red-line:     #ecd5d3;  /* border for red-soft surfaces */
+
+  /* ---- semantic / qualification ---- */
+  --color-win-ink:      #3d6b41;  /* group winner, success */
+  --color-win-soft:     #e9efe6;
+  --color-runner-ink:   #2c4f8a;  /* runner-up */
+  --color-runner-soft:  #e6ebf5;
+  --color-third-ink:    #9a7b2d;  /* third place (provisional) */
+  --color-third-soft:   #f5eedd;
+  --color-out-ink:      #9aa0ad;  /* eliminated / zero / disabled */
+  --color-out-soft:     #f0ede6;
+
+  /* ---- points tier chips ---- */
+  --tier-exact-bg:      #c1273a;  --tier-exact-ink:   #ffffff;  /* 5 pts (and correct KO pick) */
+  --tier-gd-bg:         #e9efe6;  --tier-gd-ink:      #3d6b41;  /* 3 pts result+GD */
+  --tier-result-bg:     #e6ebf5;  --tier-result-ink:  #2c4f8a;  /* 1 pt result only */
+  --tier-zero-bg:       #f0ede6;  --tier-zero-ink:    #9aa0ad;  /* 0 pts / pending */
+
+  /* ---- status badges ---- */
+  --badge-bg:           #f0ebe1;  --badge-ink:        #19233f;  /* neutral status */
+  --badge-open-bg:      #e9efe6;  --badge-open-ink:   #3d6b41;  /* round open */
+  --badge-locked-bg:    #f0ede6;  --badge-locked-ink: #6d7280;  /* round locked */
+  --badge-live-bg:      #fdf3f2;  --badge-live-ink:   #c1273a;  /* awaiting results */
+
+  /* ---- radii ---- */
+  --radius-card:        14px;
+  --radius-button:      12px;
+  --radius-input:       9px;
+  --radius-pill:        999px;
+
+  /* ---- shadows (use sparingly — borders carry structure) ---- */
+  --shadow-float:       0 4px 14px rgba(25, 35, 63, 0.14);  /* save pill, modals, bottom nav */
+  --shadow-card:        none;                                /* cards use borders, not shadows */
+
+  /* ---- typography ---- */
+  /* Display: Fraunces (serif) — page titles, group letters, big numbers on celebration.
+     Body: Inter — everything else. Numerals: always font-variant-numeric: tabular-nums
+     in tables, scores, points. Load via next/font/google. */
+  --font-display:       'Fraunces', Georgia, serif;
+  --font-body:          'Inter', system-ui, sans-serif;
+
+  /* type scale (size / weight / notes) */
+  --text-h1:            24px;   /* Fraunces 700, letter-spacing -0.01em — page titles */
+  --text-h2:            17px;   /* Fraunces 700 — card titles, group names */
+  --text-body:          13.5px; /* Inter 400/500 */
+  --text-emph:          13.5px; /* Inter 600/700 */
+  --text-sub:           11px;   /* Inter 500, color muted */
+  --text-cap:           10px;   /* Inter 700, UPPERCASE, letter-spacing 0.09em, muted —
+                                   section labels ("LEADERBOARD", "GROUP A") */
+  --text-score:         15px;   /* Inter 800 tabular — scores, points */
+
+  /* ---- spacing ---- */
+  --space-page-x-mobile:  16px;
+  --space-page-x-desktop: 24px;
+  --space-card-pad:       16px;
+  --space-card-gap:       12px;
+
+  /* ---- structure ---- */
+  --appbar-border:      2px solid var(--color-ink);  /* signature: in-game header bottom rule */
+  --bottomnav-height:   58px;
+  --touch-target-min:   44px;
+}
+
+/* ============================================================
+   COMPONENT RECIPES (reference implementations — translate to
+   Tailwind utilities / small components, keep values exact)
+   ============================================================ */
+
+/* Primary button: navy fill, paper text */
+.btn-primary {
+  background: var(--color-navy); color: var(--color-paper);
+  border-radius: var(--radius-button); font-weight: 700; font-size: 13.5px;
+  padding: 13px 18px; min-height: var(--touch-target-min);
+}
+/* Secondary: card bg, hairline border, ink text */
+.btn-secondary {
+  background: var(--color-card); color: var(--color-ink);
+  border: 1px solid var(--color-line); border-radius: var(--radius-button);
+  font-weight: 600; font-size: 13px; padding: 12px 16px;
+}
+/* Destructive (lock round, remove player): solid red — never washed pink */
+.btn-destructive {
+  background: var(--color-red); color: #ffffff;
+  border-radius: var(--radius-button); font-weight: 700; padding: 13px 18px;
+}
+/* Disabled: out-soft bg, out-ink text, no border */
+
+/* Status badge */
+.badge {
+  font-size: 10.5px; font-weight: 600; padding: 4px 9px;
+  border-radius: var(--radius-pill);
+  background: var(--badge-bg); color: var(--badge-ink);
+}
+
+/* Points chip */
+.points-chip {
+  min-width: 30px; height: 26px; padding: 0 7px; border-radius: 8px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 12.5px; font-variant-numeric: tabular-nums;
+}
+
+/* Save status pill (fixed, above bottom nav on mobile / bottom-right desktop) */
+.save-pill {
+  background: var(--color-navy); color: var(--color-paper);
+  font-size: 11px; font-weight: 700; padding: 7px 12px;
+  border-radius: var(--radius-pill); box-shadow: var(--shadow-float);
+}
+
+/* Score input: 34-44px square, 1.5px border, radius-input, tabular bold.
+   Empty state: dashed border, muted "–" placeholder. Filled: solid border, ink. */
+
+/* Current-user leaderboard row */
+.row-you {
+  background: var(--color-red-soft); outline: 1px solid var(--color-red-line);
+  border-radius: 10px;
+}
+/* YOU tag: red bg, white text, 8.5px/800, uppercase, radius 5px */
+
+/* Round timeline pill states:
+   done   → win-soft bg, win-ink text, "✓" suffix
+   now    → navy bg, paper text
+   future → transparent, hairline border, muted text */
+
+/* ============================================================
+   FRANCE-NEUTRALITY RULE (hard requirement)
+   The navy/red/paper palette is the app's brand, full stop.
+   - Never preselect, highlight, sort-first, or default to France
+     (or any team) anywhere in UI or logic.
+   - No French flags, roosters, or France copy as decoration.
+   - Team flags appear ONLY as data (fixtures, picks, standings),
+     all 48 teams treated identically.
+   ============================================================ */
