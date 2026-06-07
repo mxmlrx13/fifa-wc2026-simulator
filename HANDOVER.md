@@ -784,3 +784,44 @@ The design system is called "Tricolore Editorial." Warm, paper-like backgrounds 
 **Mobile:** Bottom tab bar concept (per spec §4, not yet fully implemented as a separate component — navigation is via links on the dashboard).
 
 **Desktop:** Top in-game header with back link, game name + code, nav links. Content max-width varies by page (1080px for main, tighter for forms).
+
+---
+
+## 15. Operational Tooling
+
+### CI (GitHub Actions)
+
+`.github/workflows/ci.yml` runs on every push/PR to `main`:
+1. `npm run test` — Vitest unit tests
+2. `npm run lint -- --max-warnings=0 --ignore-pattern '.netlify/**'` — ESLint strict
+3. `npm run build` — Next.js production build (with placeholder Supabase env vars)
+
+Netlify handles deploys separately (auto-deploy on push to `main`). CI only gates quality.
+
+### Error Monitoring (Sentry)
+
+`@sentry/nextjs` v10.56.0 integrated via:
+- `sentry.client.config.ts` / `sentry.server.config.ts` / `sentry.edge.config.ts` — init files
+- `instrumentation.ts` + `instrumentation-client.ts` — Next.js instrumentation hooks
+- `app/global-error.tsx` — error boundary that reports to Sentry
+- `next.config.ts` — wrapped with `withSentryConfig` (sourcemaps disabled, silent mode)
+
+**Graceful degradation:** All init files guard behind `if (dsn)`. App runs fine without `SENTRY_DSN` set.
+
+**Env vars:** `SENTRY_DSN` (server) and `NEXT_PUBLIC_SENTRY_DSN` (client) — same value, set in Netlify env and `.env.local`.
+
+### Demo Seed Script
+
+```bash
+npm run seed:demo    # scripts/seed-demo.mjs
+```
+
+Creates a demo game (code `DEMOxx`) with 4 players (Alice/Bob/Carol/Dave), full group predictions, champion picks, locked group round, MD1 official results, computed scores, and a leaderboard snapshot. Requires `SUPABASE_DB_URL` in `.env.local`.
+
+### Backup Script
+
+```bash
+npm run backup       # scripts/backup.mjs
+```
+
+Dumps all 7 tables to `backups/<ISO-timestamp>/` as JSON files. Restore order (FK-safe): games, players, game_rounds, predictions, official_results, scores, leaderboard_snapshots. The `backups/` directory is gitignored.

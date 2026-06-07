@@ -89,6 +89,8 @@ Estimated time: 20 minutes. Requires two browsers (e.g. Chrome + Firefox) and on
 
 ## 7. Enter MD1 Results (Host)
 
+> **Before entering results:** run `npm run backup` to snapshot current data.
+
 | # | Action | Expected | Pass |
 |---|--------|----------|------|
 | 7.1 | Dashboard shows "Enter Results" as host CTA | CTA links to `/play/[CODE]/results` | [ ] |
