@@ -7,6 +7,11 @@ import { cn } from '@/lib/utils'
 import EmptyState from '@/components/ui/EmptyState'
 import Skeleton from '@/components/ui/Skeleton'
 
+interface Movement {
+  direction: 'up' | 'down' | 'same' | 'new'
+  delta: number
+}
+
 interface LeaderboardEntry {
   playerId: string
   displayName: string
@@ -17,6 +22,7 @@ interface LeaderboardEntry {
   matchesScored: number
   championBonus: number
   rank: number
+  movement?: Movement
 }
 
 interface LeaderboardTableProps {
@@ -24,6 +30,29 @@ interface LeaderboardTableProps {
   gameId?: string
   compact?: boolean
   currentPlayerId?: string
+}
+
+function MovementChip({ movement }: { movement?: Movement }) {
+  if (!movement || movement.direction === 'new' || movement.direction === 'same') {
+    if (movement?.direction === 'same') {
+      return <span className="text-[9px] text-muted">&ndash;</span>
+    }
+    return null
+  }
+
+  if (movement.direction === 'up') {
+    return (
+      <span className="rounded-[3px] bg-win-soft px-1 py-px text-[9px] font-bold tabular-nums text-win-ink">
+        &#9650;{movement.delta}
+      </span>
+    )
+  }
+
+  return (
+    <span className="rounded-[3px] bg-red-soft px-1 py-px text-[9px] font-bold tabular-nums text-red">
+      &#9660;{movement.delta}
+    </span>
+  )
 }
 
 export default function LeaderboardTable({ code, gameId, compact, currentPlayerId }: LeaderboardTableProps) {
@@ -130,15 +159,18 @@ export default function LeaderboardTable({ code, gameId, compact, currentPlayerI
                 )}
               >
                 <td className="px-4 py-2.5">
-                  <span className={cn(
-                    'inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold tabular-nums',
-                    entry.rank === 1 && 'bg-win-soft text-win-ink',
-                    entry.rank === 2 && 'bg-runner-soft text-runner-ink',
-                    entry.rank === 3 && 'bg-third-soft text-third-ink',
-                    entry.rank > 3 && 'text-muted',
-                  )}>
-                    {entry.rank}
-                  </span>
+                  <div className="flex items-center gap-1">
+                    <span className={cn(
+                      'inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold tabular-nums',
+                      entry.rank === 1 && 'bg-win-soft text-win-ink',
+                      entry.rank === 2 && 'bg-runner-soft text-runner-ink',
+                      entry.rank === 3 && 'bg-third-soft text-third-ink',
+                      entry.rank > 3 && 'text-muted',
+                    )}>
+                      {entry.rank}
+                    </span>
+                    <MovementChip movement={entry.movement} />
+                  </div>
                 </td>
                 <td className="px-4 py-2.5">
                   {compact ? (

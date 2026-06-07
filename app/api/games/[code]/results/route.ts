@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getMatchIdsForRound, getAllRounds, type RoundKey } from '@/lib/engine/rounds'
 import { computePoints } from '@/lib/engine/scoring'
+import { computeLeaderboard } from '@/lib/engine/leaderboard'
 import {
   getPredictionRoundForMatchId,
   getKnockoutPointsForMatch,
@@ -248,6 +249,9 @@ export async function POST(
     }
   }
 
+  // Snapshot the leaderboard for this batch
+  await writeLeaderboardSnapshot(supabase, game.id, batch)
+
   // Automatic round transitions:
   // Check if all matches in the prediction round now have results.
   // If so, mark the round as 'scored' and open the next round.
@@ -312,6 +316,40 @@ export async function GET(
     .in('match_id', batchMatchIds)
 
   return Response.json({ results: existingResults ?? [] })
+}
+
+async function writeLeaderboardSnapshot(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  gameId: string,
+  batch: RoundKey,
+) {
+  // Fetch all players and all scores for the game
+  const [{ data: players }, { data: allScores }] = await Promise.all([
+    supabase
+      .from('players')
+      .select('id, display_name, is_host')
+      .eq('game_id', gameId),
+    supabase
+      .from('scores')
+      .select('player_id, points, match_id')
+      .eq('game_id', gameId),
+  ])
+
+  if (!players || players.length === 0) return
+
+  const leaderboard = computeLeaderboard(players, allScores ?? [])
+
+  const snapshotRows = leaderboard.map((entry) => ({
+    game_id: gameId,
+    batch,
+    player_id: entry.playerId,
+    rank: entry.rank,
+    points: entry.totalPoints,
+  }))
+
+  await supabase
+    .from('leaderboard_snapshots')
+    .upsert(snapshotRows, { onConflict: 'game_id,batch,player_id' })
 }
 
 async function handleRoundTransition(

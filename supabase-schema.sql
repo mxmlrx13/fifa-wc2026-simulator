@@ -73,6 +73,17 @@ CREATE TABLE scores (
   UNIQUE(player_id, game_id, match_id)
 );
 
+CREATE TABLE leaderboard_snapshots (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  game_id UUID NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+  batch TEXT NOT NULL,              -- result batch key (group_md1 … final)
+  player_id UUID NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  rank INTEGER NOT NULL,
+  points INTEGER NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(game_id, batch, player_id)
+);
+
 -- Enable Realtime
 ALTER PUBLICATION supabase_realtime ADD TABLE games;
 ALTER PUBLICATION supabase_realtime ADD TABLE scores;
@@ -86,6 +97,7 @@ ALTER TABLE players ENABLE ROW LEVEL SECURITY;
 ALTER TABLE predictions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE official_results ENABLE ROW LEVEL SECURITY;
 ALTER TABLE scores ENABLE ROW LEVEL SECURITY;
+ALTER TABLE leaderboard_snapshots ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Anyone can read games" ON games FOR SELECT USING (true);
 CREATE POLICY "Anyone can create games" ON games FOR INSERT WITH CHECK (true);
@@ -110,3 +122,7 @@ CREATE POLICY "Anyone can insert results" ON official_results FOR INSERT WITH CH
 CREATE POLICY "Anyone can read scores" ON scores FOR SELECT USING (true);
 CREATE POLICY "Anyone can insert scores" ON scores FOR INSERT WITH CHECK (true);
 CREATE POLICY "Anyone can update scores" ON scores FOR UPDATE USING (true);
+
+CREATE POLICY "Anyone can read leaderboard_snapshots" ON leaderboard_snapshots FOR SELECT USING (true);
+CREATE POLICY "Anyone can insert leaderboard_snapshots" ON leaderboard_snapshots FOR INSERT WITH CHECK (true);
+CREATE POLICY "Anyone can update leaderboard_snapshots" ON leaderboard_snapshots FOR UPDATE USING (true);

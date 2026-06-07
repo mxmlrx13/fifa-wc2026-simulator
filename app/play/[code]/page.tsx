@@ -21,6 +21,7 @@ import {
 import { registerGame } from '@/lib/hooks/use-game-registry'
 import { isOnboarded, markOnboarded } from '@/lib/hooks/use-onboarding'
 import ShareInviteButton from '@/components/multiplayer/ShareInviteButton'
+import RoundRecapCard from '@/components/multiplayer/RoundRecapCard'
 import { cn } from '@/lib/utils'
 
 type Phase = 'predicting' | 'live' | 'finished'
@@ -230,6 +231,10 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
           <GameCodeDisplay code={game.code} />
         </div>
 
+        {currentPlayer && (
+          <RoundRecapCard code={code} gameId={game.id} currentPlayerId={currentPlayer.id} />
+        )}
+
         {/* Leaderboard card */}
         <div className="mb-6">
           <h3 className="mb-3 text-[10px] font-bold uppercase tracking-[0.09em] text-muted">
@@ -370,6 +375,10 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
           {game.name}
         </h1>
       </div>
+
+      {currentPlayer && (
+        <RoundRecapCard code={code} gameId={game.id} currentPlayerId={currentPlayer.id} />
+      )}
 
       {/* Final leaderboard */}
       <div className="mb-6">

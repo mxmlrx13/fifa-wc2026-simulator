@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
-import { CHAMPION_BONUS_MATCH_ID } from '@/lib/constants'
+import { computeLeaderboard, computeMovement } from '@/lib/engine/leaderboard'
+import { getAllRounds, type RoundKey } from '@/lib/engine/rounds'
 
 export async function GET(
   _request: Request,
@@ -18,75 +19,55 @@ export async function GET(
     return Response.json({ error: 'Game not found' }, { status: 404 })
   }
 
-  const { data: players } = await supabase
-    .from('players')
-    .select('id, display_name, is_host')
-    .eq('game_id', game.id)
+  const [{ data: players }, { data: scores }, { data: snapshots }] = await Promise.all([
+    supabase
+      .from('players')
+      .select('id, display_name, is_host')
+      .eq('game_id', game.id),
+    supabase
+      .from('scores')
+      .select('player_id, points, match_id')
+      .eq('game_id', game.id),
+    supabase
+      .from('leaderboard_snapshots')
+      .select('batch, player_id, rank')
+      .eq('game_id', game.id),
+  ])
 
-  const { data: scores } = await supabase
-    .from('scores')
-    .select('player_id, points, match_id')
-    .eq('game_id', game.id)
+  const leaderboard = computeLeaderboard(players ?? [], scores ?? [])
 
-  // Aggregate scores per player
-  const playerScores = new Map<string, { total: number; exact: number; correct: number; matches: number; championBonus: number }>()
+  // Determine latest snapshot batch and compute movement
+  const allRounds = getAllRounds()
+  const snapshotBatches = new Set((snapshots ?? []).map((s) => s.batch))
+  const latestBatch = [...allRounds].reverse().find((r) => snapshotBatches.has(r)) as RoundKey | undefined
 
-  for (const p of players ?? []) {
-    playerScores.set(p.id, { total: 0, exact: 0, correct: 0, matches: 0, championBonus: 0 })
-  }
-
-  for (const s of scores ?? []) {
-    const current = playerScores.get(s.player_id)
-    if (current) {
-      current.total += s.points
-      if (s.match_id === CHAMPION_BONUS_MATCH_ID) {
-        current.championBonus = s.points
-      } else {
-        current.matches++
-        if (s.points === 5) current.exact++
-        if (s.points > 0) current.correct++
+  // Find the batch before the latest to compute movement
+  let previousBatch: RoundKey | undefined
+  if (latestBatch) {
+    const idx = allRounds.indexOf(latestBatch)
+    if (idx > 0) {
+      // Find the most recent batch before the latest that has snapshots
+      for (let i = idx - 1; i >= 0; i--) {
+        if (snapshotBatches.has(allRounds[i])) {
+          previousBatch = allRounds[i]
+          break
+        }
       }
     }
   }
 
-  const sorted = (players ?? [])
-    .map((p) => {
-      const stats = playerScores.get(p.id) ?? { total: 0, exact: 0, correct: 0, matches: 0, championBonus: 0 }
-      return {
-        playerId: p.id,
-        displayName: p.display_name,
-        isHost: p.is_host,
-        totalPoints: stats.total,
-        exactScores: stats.exact,
-        correctResults: stats.correct,
-        matchesScored: stats.matches,
-        championBonus: stats.championBonus,
-      }
-    })
-    .sort((a, b) =>
-      b.totalPoints - a.totalPoints
-      || b.exactScores - a.exactScores
-      || b.correctResults - a.correctResults
-    )
+  const prevSnapshot = previousBatch
+    ? (snapshots ?? []).filter((s) => s.batch === previousBatch)
+    : null
+  const movement = computeMovement(leaderboard, prevSnapshot)
 
-  // Assign shared ranks: tied players get the same rank number
-  const leaderboard = sorted.map((entry, i) => {
-    let rank = 1
-    if (i > 0) {
-      const prev = sorted[i - 1]
-      const prevRank = (leaderboard[i - 1] as { rank: number }).rank
-      if (
-        entry.totalPoints === prev.totalPoints &&
-        entry.exactScores === prev.exactScores &&
-        entry.correctResults === prev.correctResults
-      ) {
-        rank = prevRank
-      } else {
-        rank = i + 1
-      }
-    }
-    return { ...entry, rank }
+  const leaderboardWithMovement = leaderboard.map((entry) => ({
+    ...entry,
+    movement: movement.get(entry.playerId) ?? { direction: 'new' as const, delta: 0 },
+  }))
+
+  return Response.json({
+    leaderboard: leaderboardWithMovement,
+    latestBatch: latestBatch ?? null,
   })
-
-  return Response.json({ leaderboard })
 }
