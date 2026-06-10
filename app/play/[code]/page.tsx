@@ -333,7 +333,7 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
           <button
             type="button"
             onClick={() => setShowHowItWorks(true)}
-            className="text-[11px] font-semibold text-muted hover:text-ink transition-colors"
+            className="inline-flex items-center gap-1 rounded-[var(--radius-pill)] bg-out-soft px-3 py-1.5 text-[11px] font-bold text-ink hover:bg-line transition-colors"
           >
             How it works
           </button>
@@ -415,7 +415,7 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
         <button
           type="button"
           onClick={() => setShowHowItWorks(true)}
-          className="text-[11px] font-semibold text-muted hover:text-ink transition-colors"
+          className="inline-flex items-center gap-1 rounded-[var(--radius-pill)] bg-out-soft px-3 py-1.5 text-[11px] font-bold text-ink hover:bg-line transition-colors"
         >
           How it works
         </button>

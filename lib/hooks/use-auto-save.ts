@@ -82,10 +82,15 @@ export function useAutoSave({
     return () => window.removeEventListener('beforeunload', handler)
   }, [dirty])
 
-  // Cleanup timer on unmount
+  // Flush pending save on unmount (SPA navigation would otherwise lose it)
   useEffect(() => {
     return () => {
-      if (timerRef.current) clearTimeout(timerRef.current)
+      if (timerRef.current) {
+        clearTimeout(timerRef.current)
+        timerRef.current = null
+        // Fire the save immediately — refs still hold correct values during cleanup
+        executeSaveRef.current?.()
+      }
     }
   }, [])
 
