@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useState } from 'react'
+import { use, useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useGame } from '@/lib/supabase/use-game'
@@ -10,6 +10,9 @@ import GameCodeDisplay from '@/components/multiplayer/GameCodeDisplay'
 import PlayerList from '@/components/multiplayer/PlayerList'
 import LeaderboardTable from '@/components/multiplayer/LeaderboardTable'
 import RecoveryLinkDisplay from '@/components/multiplayer/RecoveryLinkDisplay'
+import LinkEmailForm from '@/components/multiplayer/LinkEmailForm'
+import EmailHintModal from '@/components/multiplayer/EmailHintModal'
+import { getAuthUser } from '@/lib/supabase/auth'
 import OnboardingFlow from '@/components/onboarding/OnboardingFlow'
 import Modal from '@/components/ui/Modal'
 import Skeleton from '@/components/ui/Skeleton'
@@ -43,6 +46,12 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
   const [locking, setLocking] = useState(false)
   const [onboardingDismissed, setOnboardingDismissed] = useState(false)
   const [showHowItWorks, setShowHowItWorks] = useState(false)
+  const [hasEmail, setHasEmail] = useState<boolean | null>(null)
+  const linkEmailRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    getAuthUser().then((user) => setHasEmail(!!user?.email))
+  }, [])
 
   // Show onboarding for non-players who haven't seen it (computed, not effect-based)
   const shouldOnboard = !loading && !!game && !currentPlayer && !isOnboarded() && !onboardingDismissed
@@ -115,6 +124,15 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
     }
   }
 
+  // Email hint modal — shown once for anonymous users across all phases
+  const emailHintModal = currentPlayer && hasEmail === false ? (
+    <EmailHintModal
+      onLinkNow={() => {
+        linkEmailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }}
+    />
+  ) : null
+
   // ── PREDICTING ──
 
   if (phase === 'predicting') {
@@ -184,7 +202,13 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
               </button>
             )}
 
-            {currentPlayer?.recoveryToken && (
+            {currentPlayer && hasEmail === false && (
+              <div ref={linkEmailRef}>
+                <LinkEmailForm />
+              </div>
+            )}
+
+            {currentPlayer?.recoveryToken && !hasEmail && (
               <RecoveryLinkDisplay code={code} recoveryToken={currentPlayer.recoveryToken} />
             )}
 
@@ -213,6 +237,8 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
             </p>
           </Modal>
         )}
+
+        {emailHintModal}
       </div>
     )
   }
@@ -354,6 +380,8 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
             </p>
           </Modal>
         )}
+
+        {emailHintModal}
       </div>
     )
   }
@@ -420,6 +448,8 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
           How it works
         </button>
       </div>
+
+      {emailHintModal}
     </div>
   )
 }

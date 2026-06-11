@@ -2,8 +2,9 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
-import { useGameRegistry, removeGame, type GameRegistryEntry } from '@/lib/hooks/use-game-registry'
+import { useGameRegistry, removeGame, registerGame, type GameRegistryEntry } from '@/lib/hooks/use-game-registry'
 import { gameFetch } from '@/lib/supabase/game-fetch'
+import { signInWithEmail, getAuthUser } from '@/lib/supabase/auth'
 import OnboardingFlow from '@/components/onboarding/OnboardingFlow'
 import Badge from '@/components/ui/Badge'
 
@@ -78,6 +79,39 @@ export default function PlayLanding() {
   const [loaded, setLoaded] = useState(false)
   const enrichedRef = useRef(false)
   const [showHowItWorks, setShowHowItWorks] = useState(false)
+  const [loginEmail, setLoginEmail] = useState('')
+  const [loginSent, setLoginSent] = useState(false)
+  const [loginError, setLoginError] = useState<string | null>(null)
+  const [loginLoading, setLoginLoading] = useState(false)
+  const syncedRef = useRef(false)
+
+  // Sync games from server for email-authenticated users
+  useEffect(() => {
+    if (syncedRef.current) return
+    syncedRef.current = true
+
+    async function syncFromServer() {
+      const user = await getAuthUser()
+      if (!user?.email) return
+
+      try {
+        const res = await fetch('/api/my-games')
+        if (!res.ok) return
+        const { games: serverGames } = await res.json()
+        if (Array.isArray(serverGames)) {
+          serverGames.forEach((g: { code: string; name: string }) => {
+            registerGame(g.code, g.name)
+          })
+          // Reset enrichment so newly synced games get enriched
+          enrichedRef.current = false
+          refresh()
+        }
+      } catch {
+        // Sync is best-effort
+      }
+    }
+    syncFromServer()
+  }, [refresh])
 
   // Enrich games from API on mount — only once
   useEffect(() => {
@@ -156,6 +190,62 @@ export default function PlayLanding() {
             <span className="text-lg text-navy">&#8594;</span>
             Join with Code
           </Link>
+        </div>
+
+        {/* Sign in with email */}
+        <div className="mt-8 mx-auto max-w-sm">
+          {loginSent ? (
+            <div className="rounded-[var(--radius-card)] border border-line bg-card px-4 py-3 text-center">
+              <p className="text-[12px] font-semibold text-ink">Check your inbox</p>
+              <p className="mt-1 text-[11px] text-muted">
+                We sent a magic link to <strong>{loginEmail}</strong>. Check spam if you don&apos;t see it.
+              </p>
+              <button
+                type="button"
+                onClick={() => setLoginSent(false)}
+                className="mt-2 text-[11px] font-semibold text-navy hover:underline"
+              >
+                Try a different email
+              </button>
+            </div>
+          ) : (
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault()
+                if (!loginEmail.trim()) return
+                setLoginLoading(true)
+                setLoginError(null)
+                const { error } = await signInWithEmail(loginEmail.trim())
+                setLoginLoading(false)
+                if (error) {
+                  setLoginError(error.message ?? 'Something went wrong.')
+                } else {
+                  setLoginSent(true)
+                }
+              }}
+              className="space-y-2"
+            >
+              <p className="text-[11px] text-muted">Already linked your email? Sign in to sync your games.</p>
+              <div className="flex items-stretch gap-2">
+                <input
+                  type="email"
+                  required
+                  placeholder="you@example.com"
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                  className="min-w-0 flex-1 rounded-[var(--radius-input)] border border-line bg-out-soft px-3 py-2 text-[12px] text-ink outline-none placeholder:text-muted focus:border-navy"
+                />
+                <button
+                  type="submit"
+                  disabled={loginLoading}
+                  className="shrink-0 rounded-[var(--radius-button)] border border-line bg-card px-4 py-2 text-[12px] font-bold text-ink transition-all hover:bg-paper disabled:opacity-50"
+                >
+                  {loginLoading ? 'Sending...' : 'Sign in'}
+                </button>
+              </div>
+              {loginError && <p className="text-[11px] text-red">{loginError}</p>}
+            </form>
+          )}
         </div>
 
         {/* My Games */}
