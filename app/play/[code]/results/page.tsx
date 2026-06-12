@@ -9,6 +9,7 @@ import { bracketTemplate } from '@/lib/data/bracket-template'
 import { teamsMap } from '@/lib/data/teams'
 import { THIRD_PLACE_MATCH_ID, FINAL_MATCH_ID } from '@/lib/constants'
 import ScoreInput from '@/components/shared/ScoreInput'
+import SuggestionReview from '@/components/multiplayer/SuggestionReview'
 import Skeleton from '@/components/ui/Skeleton'
 import { cn } from '@/lib/utils'
 
@@ -239,6 +240,11 @@ export default function ResultsPage({ params }: { params: Promise<{ code: string
         <p className="text-[13.5px] text-muted">
           Select a batch and enter scores for those matches.
         </p>
+      </div>
+
+      {/* Suggestions from auto-results */}
+      <div className="mb-6">
+        <SuggestionReview code={code} />
       </div>
 
       {/* Batch pills with per-batch state */}

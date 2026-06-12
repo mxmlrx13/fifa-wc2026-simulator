@@ -25,6 +25,8 @@ import { registerGame } from '@/lib/hooks/use-game-registry'
 import { isOnboarded, markOnboarded } from '@/lib/hooks/use-onboarding'
 import ShareInviteButton from '@/components/multiplayer/ShareInviteButton'
 import RoundRecapCard from '@/components/multiplayer/RoundRecapCard'
+import AutoResultsToggle from '@/components/multiplayer/AutoResultsToggle'
+import SuggestionReview from '@/components/multiplayer/SuggestionReview'
 import { cn } from '@/lib/utils'
 
 type Phase = 'predicting' | 'live' | 'finished'
@@ -289,6 +291,14 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
             ) : hostAction.type === 'open_round' ? (
               <OpenRoundButton code={code} hostAction={hostAction} onAction={refetch} />
             ) : null}
+          </div>
+        )}
+
+        {/* Auto-results (host only) */}
+        {isHost && (
+          <div className="mb-6 space-y-4">
+            <AutoResultsToggle code={code} />
+            <SuggestionReview code={code} />
           </div>
         )}
 
