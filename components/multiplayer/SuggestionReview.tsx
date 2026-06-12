@@ -23,6 +23,7 @@ interface Suggestion {
 
 interface SuggestionReviewProps {
   code: string
+  onResultsChanged?: () => void
 }
 
 const REASON_LABELS: Record<string, string> = {
@@ -39,7 +40,7 @@ function getMatchTeams(matchId: number): { homeId: string; awayId: string } | nu
   return null
 }
 
-export default function SuggestionReview({ code }: SuggestionReviewProps) {
+export default function SuggestionReview({ code, onResultsChanged }: SuggestionReviewProps) {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -78,6 +79,7 @@ export default function SuggestionReview({ code }: SuggestionReviewProps) {
           s.id === suggestionId ? { ...s, status: action === 'approve' ? 'host_applied' : 'dismissed' } : s,
         ),
       )
+      if (action === 'approve') onResultsChanged?.()
     }
     setActionLoading(null)
     setEditingId(null)

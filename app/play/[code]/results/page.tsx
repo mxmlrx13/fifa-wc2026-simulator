@@ -80,6 +80,7 @@ export default function ResultsPage({ params }: { params: Promise<{ code: string
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [batchStates, setBatchStates] = useState<Record<string, BatchState>>({})
   const [loadingExisting, setLoadingExisting] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   const matchIds = getMatchIdsForRound(selectedBatch)
   const isKnockoutBatch = !selectedBatch.startsWith('group_md')
@@ -96,12 +97,12 @@ export default function ResultsPage({ params }: { params: Promise<{ code: string
       }
     }
     fetchBatchStates()
-  }, [game, code, saved])
+  }, [game, code, saved, refreshKey])
 
-  // Load existing results when batch changes
+  // Load existing results when batch changes or after suggestion approval
   useEffect(() => {
     setResults(new Map())
-    setSaved(false)
+    if (refreshKey === 0) setSaved(false)
     setSubmitError(null)
 
     if (!game) return
@@ -123,6 +124,8 @@ export default function ResultsPage({ params }: { params: Promise<{ code: string
             })
           }
           setResults(existing)
+          // If this was triggered by a suggestion approval, mark as saved
+          if (refreshKey > 0) setSaved(true)
         }
       })
       .finally(() => {
@@ -130,7 +133,7 @@ export default function ResultsPage({ params }: { params: Promise<{ code: string
       })
 
     return () => { cancelled = true }
-  }, [selectedBatch, game, code])
+  }, [selectedBatch, game, code, refreshKey])
 
   const tiedWithoutWinner = useMemo(() => {
     if (!isKnockoutBatch) return []
@@ -244,7 +247,7 @@ export default function ResultsPage({ params }: { params: Promise<{ code: string
 
       {/* Suggestions from auto-results */}
       <div className="mb-6">
-        <SuggestionReview code={code} />
+        <SuggestionReview code={code} onResultsChanged={() => setRefreshKey((k) => k + 1)} />
       </div>
 
       {/* Batch pills with per-batch state */}
