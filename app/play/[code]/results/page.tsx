@@ -75,6 +75,8 @@ export default function ResultsPage({ params }: { params: Promise<{ code: string
   const { game, currentPlayer, loading } = useGame(code)
   const [selectedBatch, setSelectedBatch] = useState<RoundKey>('group_md1')
   const [results, setResults] = useState<Map<number, MatchResult>>(new Map())
+  const [dbMatchIds, setDbMatchIds] = useState<Set<number>>(new Set())
+  const [dirtyMatchIds, setDirtyMatchIds] = useState<Set<number>>(new Set())
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -102,7 +104,9 @@ export default function ResultsPage({ params }: { params: Promise<{ code: string
   // Load existing results when batch changes or after suggestion approval
   useEffect(() => {
     setResults(new Map())
-    if (refreshKey === 0) setSaved(false)
+    setDbMatchIds(new Set())
+    setDirtyMatchIds(new Set())
+    setSaved(false)
     setSubmitError(null)
 
     if (!game) return
@@ -115,6 +119,7 @@ export default function ResultsPage({ params }: { params: Promise<{ code: string
         if (cancelled) return
         if (data) {
           const existing = new Map<number, MatchResult>()
+          const fromDb = new Set<number>()
           for (const r of data.results ?? []) {
             existing.set(r.match_id, {
               matchId: r.match_id,
@@ -122,10 +127,10 @@ export default function ResultsPage({ params }: { params: Promise<{ code: string
               awayScore: r.away_score,
               winnerId: r.winner_id,
             })
+            fromDb.add(r.match_id)
           }
           setResults(existing)
-          // If this was triggered by a suggestion approval, mark as saved
-          if (refreshKey > 0) setSaved(true)
+          setDbMatchIds(fromDb)
         }
       })
       .finally(() => {
@@ -159,6 +164,7 @@ export default function ResultsPage({ params }: { params: Promise<{ code: string
         next.set(matchId, { ...existing })
         return next
       })
+      setDirtyMatchIds((prev) => new Set(prev).add(matchId))
       setSaved(false)
       setSubmitError(null)
     },
@@ -174,6 +180,7 @@ export default function ResultsPage({ params }: { params: Promise<{ code: string
         next.set(matchId, { ...existing })
         return next
       })
+      setDirtyMatchIds((prev) => new Set(prev).add(matchId))
       setSaved(false)
       setSubmitError(null)
     },
@@ -184,14 +191,22 @@ export default function ResultsPage({ params }: { params: Promise<{ code: string
     setSaving(true)
     setSubmitError(null)
 
+    // Only submit results that are new or modified by the user
     const payload = Array.from(results.values())
       .filter((r) => r.homeScore !== null && r.awayScore !== null)
+      .filter((r) => !dbMatchIds.has(r.matchId) || dirtyMatchIds.has(r.matchId))
       .map((r) => ({
         matchId: r.matchId,
         homeScore: r.homeScore!,
         awayScore: r.awayScore!,
         winnerId: r.winnerId ?? undefined,
       }))
+
+    if (payload.length === 0) {
+      setSaving(false)
+      setSaved(true)
+      return
+    }
 
     const res = await fetch(`/api/games/${code}/results`, {
       method: 'POST',
@@ -202,6 +217,13 @@ export default function ResultsPage({ params }: { params: Promise<{ code: string
     setSaving(false)
     if (res.ok) {
       setSaved(true)
+      // Move submitted results into dbMatchIds
+      setDbMatchIds((prev) => {
+        const next = new Set(prev)
+        for (const r of payload) next.add(r.matchId)
+        return next
+      })
+      setDirtyMatchIds(new Set())
     } else {
       const data = await res.json().catch(() => ({ error: 'Unknown error' }))
       setSubmitError(data.error ?? 'Failed to save results')
@@ -226,11 +248,16 @@ export default function ResultsPage({ params }: { params: Promise<{ code: string
     )
   }
 
-  const completeResults = Array.from(results.values()).filter(
+  const allCompleteResults = Array.from(results.values()).filter(
     (r) => r.homeScore !== null && r.awayScore !== null,
-  ).length
+  )
+  const newOrModifiedResults = allCompleteResults.filter(
+    (r) => !dbMatchIds.has(r.matchId) || dirtyMatchIds.has(r.matchId),
+  )
+  const completeResults = allCompleteResults.length
+  const submittableCount = newOrModifiedResults.length
 
-  const canSubmit = completeResults > 0 && tiedWithoutWinner.length === 0
+  const canSubmit = submittableCount > 0 && tiedWithoutWinner.length === 0
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 animate-fadeIn">
@@ -399,21 +426,21 @@ export default function ResultsPage({ params }: { params: Promise<{ code: string
       <div className="sticky bottom-4 mt-6">
         <button
           onClick={handleSubmit}
-          disabled={saving || !canSubmit}
+          disabled={saving || !canSubmit || (completeResults > 0 && submittableCount === 0)}
           className={cn(
             'w-full rounded-[var(--radius-button)] px-5 py-3 text-sm font-bold shadow-float transition-all disabled:opacity-50',
-            saved
+            saved || (completeResults > 0 && submittableCount === 0)
               ? 'bg-win-soft text-win-ink'
               : 'bg-navy text-paper hover:brightness-94',
           )}
         >
           {saving
             ? 'Saving & Computing Scores...'
-            : saved
-              ? 'Results Saved & Scores Computed!'
+            : saved || (completeResults > 0 && submittableCount === 0)
+              ? `${completeResults} Result${completeResults === 1 ? '' : 's'} Saved`
               : tiedWithoutWinner.length > 0
                 ? `Select winner for ${tiedWithoutWinner.length} tied match${tiedWithoutWinner.length === 1 ? '' : 'es'}`
-                : `Submit ${completeResults} Result${completeResults === 1 ? '' : 's'}`}
+                : `Submit ${submittableCount} New Result${submittableCount === 1 ? '' : 's'}`}
         </button>
       </div>
     </div>
