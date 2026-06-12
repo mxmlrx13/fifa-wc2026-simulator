@@ -8,7 +8,8 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { fetchApiFootball, getApiFootballWinner, type ApiFootballFixture } from './sources/api-football'
+import { getApiFootballWinner, type ApiFootballFixture } from './sources/api-football'
+import { fetchEspn } from './sources/espn'
 import { fetchOpenFootball, type OpenFootballMatch } from './sources/openfootball'
 import { resolveTeamId, resolveGroupMatchId, resolveKnockoutMatchId } from '../data/external-match-map'
 import { getRoundForMatchId, type RoundKey } from '../engine/rounds'
@@ -41,14 +42,16 @@ interface MatchedResult {
 export async function runAutoResults(supabase: SupabaseClient): Promise<AutoResultsLog> {
   const log: AutoResultsLog = { gamesProcessed: 0, autoApplied: 0, flagged: 0, errors: [] }
 
-  // Fetch both sources once (shared across all games)
+  // Fetch sources once (shared across all games)
+  // Primary: ESPN (free, no key needed)
+  // Crosscheck: openfootball (if available)
   const [primary, crosscheck] = await Promise.all([
-    fetchApiFootball(),
+    fetchEspn(),
     fetchOpenFootball(),
   ])
 
   if (!primary) {
-    log.errors.push('Primary source (API-Football) unavailable')
+    log.errors.push('Primary source (ESPN) unavailable')
     return log
   }
 
@@ -87,12 +90,12 @@ export async function runAutoResultsForGame(
   const log: AutoResultsLog = { gamesProcessed: 0, autoApplied: 0, flagged: 0, errors: [] }
 
   const [primary, crosscheck] = await Promise.all([
-    fetchApiFootball(),
+    fetchEspn(),
     fetchOpenFootball(),
   ])
 
   if (!primary) {
-    log.errors.push('Primary source (API-Football) unavailable')
+    log.errors.push('Primary source (ESPN) unavailable')
     return log
   }
 
