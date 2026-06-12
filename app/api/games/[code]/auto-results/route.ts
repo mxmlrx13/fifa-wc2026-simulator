@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { runAutoResultsForGame } from '@/lib/results/auto-results'
 
 /** GET: current auto-results setting + pending suggestions count */
 export async function GET(
@@ -89,4 +90,38 @@ export async function PATCH(
   }
 
   return Response.json({ enabled })
+}
+
+/** POST: manually trigger auto-results fetch for this game */
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ code: string }> },
+) {
+  const { code } = await params
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return Response.json({ error: 'Not authenticated' }, { status: 401 })
+
+  const { data: game } = await supabase
+    .from('games')
+    .select('id, auto_results_enabled')
+    .eq('code', code.toUpperCase())
+    .single()
+
+  if (!game) return Response.json({ error: 'Game not found' }, { status: 404 })
+
+  const { data: hostPlayer } = await supabase
+    .from('players')
+    .select('is_host')
+    .eq('game_id', game.id)
+    .eq('auth_id', user.id)
+    .single()
+
+  if (!hostPlayer?.is_host) {
+    return Response.json({ error: 'Only the host can trigger auto-results' }, { status: 403 })
+  }
+
+  const log = await runAutoResultsForGame(supabase, game.id)
+  return Response.json(log)
 }

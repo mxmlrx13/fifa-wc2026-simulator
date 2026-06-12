@@ -77,6 +77,37 @@ export async function runAutoResults(supabase: SupabaseClient): Promise<AutoResu
   return log
 }
 
+/**
+ * Run auto-results for a single game. Fetches sources and processes.
+ */
+export async function runAutoResultsForGame(
+  supabase: SupabaseClient,
+  gameId: string,
+): Promise<AutoResultsLog> {
+  const log: AutoResultsLog = { gamesProcessed: 0, autoApplied: 0, flagged: 0, errors: [] }
+
+  const [primary, crosscheck] = await Promise.all([
+    fetchApiFootball(),
+    fetchOpenFootball(),
+  ])
+
+  if (!primary) {
+    log.errors.push('Primary source (API-Football) unavailable')
+    return log
+  }
+
+  try {
+    const result = await processGame(supabase, gameId, primary, crosscheck)
+    log.gamesProcessed = 1
+    log.autoApplied = result.applied
+    log.flagged = result.flagged
+  } catch (err) {
+    log.errors.push(err instanceof Error ? err.message : String(err))
+  }
+
+  return log
+}
+
 async function processGame(
   supabase: SupabaseClient,
   gameId: string,

@@ -11,6 +11,8 @@ export default function AutoResultsToggle({ code, pendingCount: initialPending }
   const [enabled, setEnabled] = useState<boolean | null>(null)
   const [pendingCount, setPendingCount] = useState(initialPending ?? 0)
   const [toggling, setToggling] = useState(false)
+  const [fetching, setFetching] = useState(false)
+  const [fetchResult, setFetchResult] = useState<string | null>(null)
 
   useEffect(() => {
     fetch(`/api/games/${code}/auto-results`)
@@ -37,6 +39,30 @@ export default function AutoResultsToggle({ code, pendingCount: initialPending }
       setEnabled(data.enabled)
     }
     setToggling(false)
+  }
+
+  async function handleFetchNow() {
+    setFetching(true)
+    setFetchResult(null)
+    const res = await fetch(`/api/games/${code}/auto-results`, { method: 'POST' })
+    if (res.ok) {
+      const data = await res.json()
+      const parts: string[] = []
+      if (data.autoApplied > 0) parts.push(`${data.autoApplied} applied`)
+      if (data.flagged > 0) parts.push(`${data.flagged} for review`)
+      if (parts.length === 0 && data.errors?.length === 0) parts.push('No new results found')
+      if (data.errors?.length > 0) parts.push(data.errors[0])
+      setFetchResult(parts.join(', '))
+      // Refresh pending count
+      const statusRes = await fetch(`/api/games/${code}/auto-results`)
+      if (statusRes.ok) {
+        const statusData = await statusRes.json()
+        setPendingCount(statusData.pendingSuggestions ?? 0)
+      }
+    } else {
+      setFetchResult('Failed to fetch results')
+    }
+    setFetching(false)
   }
 
   if (enabled === null) return null
@@ -66,6 +92,22 @@ export default function AutoResultsToggle({ code, pendingCount: initialPending }
           />
         </button>
       </div>
+      {enabled && (
+        <div className="mt-3 flex items-center gap-2">
+          <button
+            onClick={handleFetchNow}
+            disabled={fetching}
+            className={`rounded-[var(--radius-pill)] border border-line px-3 py-1 text-[11px] font-bold transition-all ${
+              fetching ? 'opacity-50' : 'hover:bg-paper hover:text-ink'
+            } text-muted`}
+          >
+            {fetching ? 'Fetching...' : 'Fetch results now'}
+          </button>
+          {fetchResult && (
+            <span className="text-[11px] text-muted">{fetchResult}</span>
+          )}
+        </div>
+      )}
       {pendingCount > 0 && (
         <p className="mt-2 text-[11px] font-semibold text-navy">
           {pendingCount} result{pendingCount !== 1 ? 's' : ''} awaiting your review
