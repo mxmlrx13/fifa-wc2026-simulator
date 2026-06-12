@@ -87,7 +87,7 @@ export async function GET(
   if (!isOwnData) {
     allowedMatchIds = new Set<number>()
     for (const round of PREDICTION_ROUNDS) {
-      if (roundStatusMap[round] === 'scored') {
+      if (roundStatusMap[round] === 'locked' || roundStatusMap[round] === 'scored') {
         const [min, max] = PREDICTION_ROUND_RANGES[round]
         for (let i = min; i <= max; i++) {
           allowedMatchIds.add(i)
