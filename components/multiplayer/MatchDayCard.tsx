@@ -36,7 +36,7 @@ interface PlayerInfo {
 }
 
 interface MatchDayData {
-  today: MatchEntry[]
+  upcoming: MatchEntry[]
   recent: MatchEntry[]
   players: PlayerInfo[]
   currentPlayerId: string
@@ -61,7 +61,12 @@ function teamBadge(teamId: string | null): string {
 
 function formatKickoff(utcStr: string): string {
   const d = new Date(utcStr)
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  const now = new Date()
+  const isToday = d.toDateString() === now.toDateString()
+  const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  if (isToday) return time
+  const date = d.toLocaleDateString([], { day: 'numeric', month: 'short' })
+  return `${date} ${time}`
 }
 
 function pointsBg(pts: number | null): string {
@@ -166,7 +171,7 @@ export default function MatchDayCard({ code }: { code: string }) {
   }, [code])
 
   if (loading || !data) return null
-  if (data.today.length === 0 && data.recent.length === 0) return null
+  if (data.upcoming.length === 0 && data.recent.length === 0) return null
 
   // Sort players: current user first
   const sortedPlayers = [...data.players].sort((a, b) => {
@@ -198,20 +203,20 @@ export default function MatchDayCard({ code }: { code: string }) {
           </div>
         )}
 
-        {/* Today's matches */}
-        {data.today.length > 0 && (
+        {/* Upcoming matches */}
+        {data.upcoming.length > 0 && (
           <div>
             <h3 className="mb-2 text-[10px] font-bold uppercase tracking-[0.09em] text-muted">
-              Today&apos;s Matches
+              Upcoming
             </h3>
             <div className="space-y-2">
-              {data.today.map((match) => (
+              {data.upcoming.map((match) => (
                 <MatchRow
                   key={match.matchId}
                   match={match}
                   players={sortedPlayers}
                   currentPlayerId={data.currentPlayerId}
-                  showResult={!!match.result}
+                  showResult={false}
                 />
               ))}
             </div>

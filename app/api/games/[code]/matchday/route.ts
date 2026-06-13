@@ -7,8 +7,8 @@ import { GROUP_MATCH_MAX_ID } from '@/lib/constants'
 /**
  * GET /api/games/[code]/matchday
  *
- * Returns today's matches and recent completed matches with predictions
- * from all players in the game.
+ * Returns the 3 most recent completed matches (with results) and
+ * the next 3 upcoming matches (no result yet) with all players' predictions.
  */
 export async function GET(
   _request: Request,
@@ -29,50 +29,52 @@ export async function GET(
   if (!game) return Response.json({ error: 'Game not found' }, { status: 404 })
   if (!user) return Response.json({ error: 'Not authenticated' }, { status: 401 })
 
-  // Get current player
-  const { data: currentPlayer } = await supabase
-    .from('players')
-    .select('id')
-    .eq('game_id', game.id)
-    .eq('auth_id', user.id)
-    .single()
+  // Get current player + all official results for this game in parallel
+  const [{ data: currentPlayer }, { data: allOfficialResults }] = await Promise.all([
+    supabase
+      .from('players')
+      .select('id')
+      .eq('game_id', game.id)
+      .eq('auth_id', user.id)
+      .single(),
+    supabase
+      .from('official_results')
+      .select('match_id, home_score, away_score, winner_id')
+      .eq('game_id', game.id),
+  ])
 
   if (!currentPlayer) return Response.json({ error: 'Not in this game' }, { status: 403 })
 
-  // Determine today's date range (in UTC)
-  const now = new Date()
-  const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
-  const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000)
+  // Build set of match IDs that have official results
+  const resultMatchIds = new Set((allOfficialResults ?? []).map((r) => r.match_id))
 
-  // Find today's match IDs and recent past match IDs from schedule
-  const todayMatchIds: number[] = []
-  const pastMatchIds: { id: number; kickoff: string }[] = []
+  // Sort all scheduled matches by kickoff
+  const allScheduled = Object.entries(schedule)
+    .map(([idStr, entry]) => ({ id: parseInt(idStr, 10), kickoff: entry.kickoffUtc }))
+    .sort((a, b) => a.kickoff.localeCompare(b.kickoff))
 
-  for (const [idStr, entry] of Object.entries(schedule)) {
-    const matchId = parseInt(idStr, 10)
-    const kickoff = new Date(entry.kickoffUtc)
+  // Recent: last 3 matches that have a result, sorted by kickoff desc
+  const recentMatchIds = allScheduled
+    .filter((m) => resultMatchIds.has(m.id))
+    .slice(-3)
+    .reverse()
+    .map((m) => m.id)
 
-    if (kickoff >= todayStart && kickoff < todayEnd) {
-      todayMatchIds.push(matchId)
-    } else if (kickoff < todayStart) {
-      pastMatchIds.push({ id: matchId, kickoff: entry.kickoffUtc })
-    }
-  }
+  // Upcoming: next 3 matches without a result, sorted by kickoff asc
+  const upcomingMatchIds = allScheduled
+    .filter((m) => !resultMatchIds.has(m.id))
+    .slice(0, 3)
+    .map((m) => m.id)
 
-  // Sort past matches by kickoff desc and take the last 5
-  pastMatchIds.sort((a, b) => b.kickoff.localeCompare(a.kickoff))
-  const recentMatchIds = pastMatchIds.slice(0, 5).map((m) => m.id)
-
-  const allMatchIds = [...todayMatchIds, ...recentMatchIds]
+  const allMatchIds = [...recentMatchIds, ...upcomingMatchIds]
   if (allMatchIds.length === 0) {
-    return Response.json({ today: [], recent: [], players: [] })
+    return Response.json({ upcoming: [], recent: [], players: [] })
   }
 
   // Fetch all data in parallel
   const [
     { data: players },
     { data: predictions },
-    { data: officialResults },
     { data: scores },
   ] = await Promise.all([
     supabase
@@ -83,11 +85,6 @@ export async function GET(
     supabase
       .from('predictions')
       .select('player_id, match_id, home_score, away_score, winner_id')
-      .eq('game_id', game.id)
-      .in('match_id', allMatchIds),
-    supabase
-      .from('official_results')
-      .select('match_id, home_score, away_score, winner_id')
       .eq('game_id', game.id)
       .in('match_id', allMatchIds),
     supabase
@@ -117,7 +114,7 @@ export async function GET(
     predByMatch.set(p.match_id, list)
   }
 
-  const resultMap = new Map((officialResults ?? []).map((r) => [r.match_id, r]))
+  const resultMap = new Map((allOfficialResults ?? []).map((r) => [r.match_id, r]))
   const scoreMap = new Map<string, number>()
   for (const s of scores ?? []) {
     scoreMap.set(`${s.player_id}-${s.match_id}`, s.points)
@@ -152,13 +149,9 @@ export async function GET(
     }
   }
 
-  // Sort today's matches by kickoff time
-  const todaySorted = todayMatchIds
-    .sort((a, b) => (schedule[a]?.kickoffUtc ?? '').localeCompare(schedule[b]?.kickoffUtc ?? ''))
-    .map(buildMatch)
-
-  // Recent matches already sorted desc by kickoff
+  // Already sorted: recent desc by kickoff, upcoming asc by kickoff
   const recentSorted = recentMatchIds.map(buildMatch)
+  const upcomingSorted = upcomingMatchIds.map(buildMatch)
 
   const playerList = (players ?? []).map((p) => ({
     id: p.id,
@@ -167,7 +160,7 @@ export async function GET(
   }))
 
   return Response.json({
-    today: todaySorted,
+    upcoming: upcomingSorted,
     recent: recentSorted,
     players: playerList,
     currentPlayerId: currentPlayer.id,
