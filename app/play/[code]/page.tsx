@@ -27,6 +27,7 @@ import ShareInviteButton from '@/components/multiplayer/ShareInviteButton'
 import RoundRecapCard from '@/components/multiplayer/RoundRecapCard'
 import AutoResultsToggle from '@/components/multiplayer/AutoResultsToggle'
 import SuggestionReview from '@/components/multiplayer/SuggestionReview'
+import MatchDayCard from '@/components/multiplayer/MatchDayCard'
 import { cn } from '@/lib/utils'
 
 type Phase = 'predicting' | 'live' | 'finished'
@@ -270,6 +271,9 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
           </h3>
           <LeaderboardTable code={code} gameId={game.id} compact currentPlayerId={currentPlayer?.id} />
         </div>
+
+        {/* Match day: recent results + today's matches */}
+        {currentPlayer && <MatchDayCard code={code} />}
 
         {/* Primary CTA */}
         {isHost && hostAction && hostAction.type !== 'finished' && (
