@@ -1,5 +1,5 @@
 /**
- * Netlify Scheduled Function — runs twice daily (07:00 + 21:00 UTC).
+ * Netlify Scheduled Function — runs every 2 hours.
  *
  * For each game with auto_results_enabled, fetches finished match results
  * from two independent sources, cross-checks them, and either auto-applies
@@ -31,5 +31,5 @@ export default async () => {
 }
 
 export const config = {
-  schedule: '0 7,21 * * *',
+  schedule: '0 */2 * * *',
 }
