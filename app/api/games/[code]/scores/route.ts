@@ -100,25 +100,34 @@ export async function GET(
     }
   }
 
-  // Fetch scores
-  const { data: allScores } = await supabase
-    .from('scores')
-    .select('match_id, points')
-    .eq('game_id', game.id)
-    .eq('player_id', targetPlayerId)
-
-  // Fetch predictions
-  const { data: allPredictions } = await supabase
-    .from('predictions')
-    .select('match_id, home_score, away_score, winner_id')
-    .eq('game_id', game.id)
-    .eq('player_id', targetPlayerId)
-
-  // Fetch official results
-  const { data: allOfficialResults } = await supabase
-    .from('official_results')
-    .select('match_id, home_score, away_score, winner_id')
-    .eq('game_id', game.id)
+  // Fetch scores, predictions, official results, and champion pick in parallel
+  const [
+    { data: allScores },
+    { data: allPredictions },
+    { data: allOfficialResults },
+    { data: targetPlayerData },
+  ] = await Promise.all([
+    supabase
+      .from('scores')
+      .select('match_id, points')
+      .eq('game_id', game.id)
+      .eq('player_id', targetPlayerId),
+    supabase
+      .from('predictions')
+      .select('match_id, home_score, away_score, winner_id')
+      .eq('game_id', game.id)
+      .eq('player_id', targetPlayerId),
+    supabase
+      .from('official_results')
+      .select('match_id, home_score, away_score, winner_id')
+      .eq('game_id', game.id),
+    supabase
+      .from('players')
+      .select('champion_pick')
+      .eq('game_id', game.id)
+      .eq('id', targetPlayerId)
+      .single(),
+  ])
 
   // Filter to allowed match IDs
   const filterByAllowed = <T extends { match_id: number }>(items: T[]): T[] => {
@@ -128,16 +137,7 @@ export async function GET(
 
   const scores = filterByAllowed(allScores ?? [])
   const predictions = filterByAllowed(allPredictions ?? [])
-  // Official results are always filtered the same way (only show results for visible rounds)
   const officialResults = filterByAllowed(allOfficialResults ?? [])
-
-  // Fetch champion pick
-  const { data: targetPlayerData } = await supabase
-    .from('players')
-    .select('champion_pick')
-    .eq('game_id', game.id)
-    .eq('id', targetPlayerId)
-    .single()
 
   const championPick = targetPlayerData?.champion_pick ?? null
 

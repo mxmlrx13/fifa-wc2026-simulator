@@ -17,7 +17,7 @@ export async function GET(
     return Response.json({ error: 'Game not found' }, { status: 404 })
   }
 
-  const [{ data: players }, { data: gameRounds }] = await Promise.all([
+  const [{ data: players }, { data: gameRounds }, { data: { user } }] = await Promise.all([
     supabase
       .from('players')
       .select('id, display_name, is_host, auth_id, champion_pick, recovery_token')
@@ -28,10 +28,8 @@ export async function GET(
       .select('round_key, status')
       .eq('game_id', game.id)
       .order('opened_at', { nullsFirst: false }),
+    supabase.auth.getUser(),
   ])
-
-  // Check if current user is a player / host
-  const { data: { user } } = await supabase.auth.getUser()
   const currentPlayer = players?.find((p) => p.auth_id === user?.id) ?? null
 
   // Order rounds by PREDICTION_ROUNDS order
