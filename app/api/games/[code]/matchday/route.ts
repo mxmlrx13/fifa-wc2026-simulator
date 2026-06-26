@@ -53,17 +53,17 @@ export async function GET(
     .map(([idStr, entry]) => ({ id: parseInt(idStr, 10), kickoff: entry.kickoffUtc }))
     .sort((a, b) => a.kickoff.localeCompare(b.kickoff))
 
-  // Recent: last 3 matches that have a result, sorted by kickoff desc
+  // Recent: last 8 matches that have a result, sorted by kickoff desc
   const recentMatchIds = allScheduled
     .filter((m) => resultMatchIds.has(m.id))
-    .slice(-3)
+    .slice(-8)
     .reverse()
     .map((m) => m.id)
 
-  // Upcoming: next 3 matches without a result, sorted by kickoff asc
+  // Upcoming: next 8 matches without a result, sorted by kickoff asc
   const upcomingMatchIds = allScheduled
     .filter((m) => !resultMatchIds.has(m.id))
-    .slice(0, 3)
+    .slice(0, 8)
     .map((m) => m.id)
 
   const allMatchIds = [...recentMatchIds, ...upcomingMatchIds]

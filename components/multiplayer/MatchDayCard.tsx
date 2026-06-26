@@ -158,9 +158,13 @@ function MatchRow({
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
+const COLLAPSED_COUNT = 3
+
 export default function MatchDayCard({ code }: { code: string }) {
   const [data, setData] = useState<MatchDayData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [recentExpanded, setRecentExpanded] = useState(false)
+  const [upcomingExpanded, setUpcomingExpanded] = useState(false)
 
   useEffect(() => {
     fetch(`/api/games/${code}/matchday`)
@@ -180,6 +184,11 @@ export default function MatchDayCard({ code }: { code: string }) {
     return 0
   })
 
+  const recentVisible = recentExpanded ? data.recent : data.recent.slice(0, COLLAPSED_COUNT)
+  const recentHasMore = data.recent.length > COLLAPSED_COUNT
+  const upcomingVisible = upcomingExpanded ? data.upcoming : data.upcoming.slice(0, COLLAPSED_COUNT)
+  const upcomingHasMore = data.upcoming.length > COLLAPSED_COUNT
+
   return (
     <div className="mb-6">
       <div className="grid gap-4 md:grid-cols-2">
@@ -190,7 +199,7 @@ export default function MatchDayCard({ code }: { code: string }) {
               Recent Results
             </h3>
             <div className="space-y-2">
-              {data.recent.map((match) => (
+              {recentVisible.map((match) => (
                 <MatchRow
                   key={match.matchId}
                   match={match}
@@ -200,6 +209,17 @@ export default function MatchDayCard({ code }: { code: string }) {
                 />
               ))}
             </div>
+            {recentHasMore && (
+              <button
+                onClick={() => setRecentExpanded(!recentExpanded)}
+                className="mt-2 flex w-full items-center justify-center gap-1 rounded-md border border-line bg-surface py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted transition-colors hover:bg-card hover:text-ink"
+              >
+                {recentExpanded ? 'See less' : `See ${data.recent.length - COLLAPSED_COUNT} more`}
+                <span className={cn('inline-block transition-transform', recentExpanded && 'rotate-180')}>
+                  ▾
+                </span>
+              </button>
+            )}
           </div>
         )}
 
@@ -210,7 +230,7 @@ export default function MatchDayCard({ code }: { code: string }) {
               Upcoming
             </h3>
             <div className="space-y-2">
-              {data.upcoming.map((match) => (
+              {upcomingVisible.map((match) => (
                 <MatchRow
                   key={match.matchId}
                   match={match}
@@ -220,6 +240,17 @@ export default function MatchDayCard({ code }: { code: string }) {
                 />
               ))}
             </div>
+            {upcomingHasMore && (
+              <button
+                onClick={() => setUpcomingExpanded(!upcomingExpanded)}
+                className="mt-2 flex w-full items-center justify-center gap-1 rounded-md border border-line bg-surface py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted transition-colors hover:bg-card hover:text-ink"
+              >
+                {upcomingExpanded ? 'See less' : `See ${data.upcoming.length - COLLAPSED_COUNT} more`}
+                <span className={cn('inline-block transition-transform', upcomingExpanded && 'rotate-180')}>
+                  ▾
+                </span>
+              </button>
+            )}
           </div>
         )}
       </div>
