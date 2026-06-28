@@ -275,13 +275,35 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
         {/* Match day: recent results + today's matches */}
         {currentPlayer && <MatchDayCard code={code} />}
 
-        {/* Primary CTA */}
+        {/* Prediction CTA — all players (incl. host) when a round is open */}
+        {openRound && currentPlayer && (
+          <div className="mb-4">
+            {DEADLINE_ENFORCEMENT_ENABLED && (
+              <div className="mb-2 flex justify-center">
+                <CountdownBadge
+                  deadline={getPredictionRoundDeadline(openRound.roundKey as PredictionRoundKey).toISOString()}
+                />
+              </div>
+            )}
+            <Link
+              href={`/play/${code}/predict`}
+              className="flex items-center justify-center gap-3 rounded-[var(--radius-button)] bg-navy px-6 py-4 text-sm font-bold text-paper transition-all hover:brightness-94"
+            >
+              Enter {PREDICTION_ROUND_LABELS[openRound.roundKey as PredictionRoundKey] ?? openRound.roundKey} picks
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
+            </Link>
+          </div>
+        )}
+
+        {/* Host actions: lock / enter results / open round */}
         {isHost && hostAction && hostAction.type !== 'finished' && (
           <div className="mb-4">
             {hostAction.type === 'lock_round' ? (
               <button
                 onClick={() => setLockModal(hostAction.roundKey)}
-                className="w-full rounded-[var(--radius-button)] bg-navy px-6 py-4 text-sm font-bold text-paper transition-all hover:brightness-94"
+                className="w-full rounded-[var(--radius-button)] border border-line bg-card px-4 py-3 text-sm font-bold text-ink transition-all hover:bg-paper"
               >
                 {hostAction.label}
               </button>
@@ -306,25 +328,7 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
           </div>
         )}
 
-        {!isHost && openRound && currentPlayer && (
-          <div className="mb-4">
-            {DEADLINE_ENFORCEMENT_ENABLED && (
-              <div className="mb-2 flex justify-center">
-                <CountdownBadge
-                  deadline={getPredictionRoundDeadline(openRound.roundKey as PredictionRoundKey).toISOString()}
-                />
-              </div>
-            )}
-            <Link
-              href={`/play/${code}/predict`}
-              className="flex items-center justify-center gap-3 rounded-[var(--radius-button)] bg-navy px-6 py-4 text-sm font-bold text-paper transition-all hover:brightness-94"
-            >
-              Enter {PREDICTION_ROUND_LABELS[openRound.roundKey as PredictionRoundKey] ?? openRound.roundKey} picks
-            </Link>
-          </div>
-        )}
-
-        {!isHost && !openRound && currentPlayer && (
+        {!openRound && currentPlayer && (
           <Link
             href={`/play/${code}/predict`}
             className="mb-4 flex items-center justify-center gap-3 rounded-[var(--radius-button)] border border-line bg-card px-6 py-4 text-sm font-bold text-ink transition-all hover:bg-paper"

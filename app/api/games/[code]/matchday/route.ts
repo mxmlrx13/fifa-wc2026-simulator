@@ -1,8 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { schedule } from '@/lib/data/schedule'
 import { groupFixtures } from '@/lib/data/fixtures'
-import { bracketTemplate } from '@/lib/data/bracket-template'
 import { GROUP_MATCH_MAX_ID } from '@/lib/constants'
+import { computeTournament } from '@/lib/engine/tournament'
 
 /**
  * GET /api/games/[code]/matchday
@@ -94,13 +94,36 @@ export async function GET(
       .in('match_id', allMatchIds),
   ])
 
+  // Resolve knockout teams via tournament engine
+  const officialResultMap = new Map(
+    (allOfficialResults ?? []).map((r) => [r.match_id, r]),
+  )
+  const groupMatches = groupFixtures.map((fixture) => {
+    const result = officialResultMap.get(fixture.id)
+    return {
+      ...fixture,
+      homeScore: result?.home_score ?? null,
+      awayScore: result?.away_score ?? null,
+    }
+  })
+  const knockoutPicks: Record<number, string> = {}
+  for (const [matchId, result] of officialResultMap) {
+    if (matchId > GROUP_MATCH_MAX_ID && result.winner_id) {
+      knockoutPicks[matchId] = result.winner_id
+    }
+  }
+  const computed = computeTournament({ groupMatches, knockoutMatches: [], knockoutPicks })
+  const resolvedKnockout = new Map(
+    computed.knockoutMatches.map((m) => [m.id, m]),
+  )
+
   // Build match info helper
   function getMatchInfo(matchId: number) {
     if (matchId <= GROUP_MATCH_MAX_ID) {
       const gf = groupFixtures.find((f) => f.id === matchId)
       if (gf) return { homeTeamId: gf.homeTeamId, awayTeamId: gf.awayTeamId, groupId: gf.groupId }
     } else {
-      const ko = bracketTemplate.find((f) => f.id === matchId)
+      const ko = resolvedKnockout.get(matchId)
       if (ko) return { homeTeamId: ko.homeTeamId ?? null, awayTeamId: ko.awayTeamId ?? null, round: ko.round }
     }
     return null
