@@ -34,9 +34,9 @@ interface EspnScoreboard {
 
 const BASE_URL = 'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard'
 
-// World Cup 2026 group stage: June 11 – June 28
-const GROUP_START = '20260611'
-const GROUP_END = '20260628'
+// World Cup 2026: June 11 – July 19 (group stage through final)
+const TOURNAMENT_START = '20260611'
+const TOURNAMENT_END = '20260719'
 
 /**
  * Generate YYYYMMDD strings for each day in a range.
@@ -61,7 +61,7 @@ function dateRange(startYmd: string, endYmd: string): string[] {
  */
 export async function fetchEspn(): Promise<ApiFootballFixture[] | null> {
   try {
-    const dates = dateRange(GROUP_START, GROUP_END)
+    const dates = dateRange(TOURNAMENT_START, TOURNAMENT_END)
     const fixtures: ApiFootballFixture[] = []
 
     // Fetch each day (ESPN returns per-date scoreboards)

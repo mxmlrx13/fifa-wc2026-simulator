@@ -15,6 +15,9 @@ import { resolveTeamId, resolveGroupMatchId, resolveKnockoutMatchId } from '../d
 import { getRoundForMatchId, type RoundKey } from '../engine/rounds'
 import { GROUP_MATCH_MAX_ID, PREDICTION_ROUND_RANGES, type PredictionRoundKey } from '../constants'
 import { applyResults, type ResultInput } from './apply-results'
+import { computeTournament } from '../engine/tournament'
+import { groupFixtures } from '../data/fixtures'
+import { applyR32Overrides } from '../engine/knockout-bracket'
 
 export interface AutoResultsLog {
   gamesProcessed: number
@@ -361,19 +364,48 @@ async function fetchResolvedBracket(
   supabase: SupabaseClient,
   gameId: string,
 ): Promise<Map<number, { homeTeamId: string; awayTeamId: string }>> {
-  // Get official results to determine knockout matchups from bracket progression
-  const { data: results } = await supabase
-    .from('official_results')
-    .select('match_id, winner_id')
-    .eq('game_id', gameId)
-    .gt('match_id', GROUP_MATCH_MAX_ID)
+  // Fetch official results + R32 overrides
+  const [{ data: results }, { data: game }] = await Promise.all([
+    supabase
+      .from('official_results')
+      .select('match_id, home_score, away_score, winner_id')
+      .eq('game_id', gameId),
+    supabase
+      .from('games')
+      .select('r32_overrides')
+      .eq('id', gameId)
+      .single(),
+  ])
+
+  const resultMap = new Map((results ?? []).map((r) => [r.match_id, r]))
+
+  // Build tournament state from official results
+  const groupMatches = groupFixtures.map((f) => {
+    const r = resultMap.get(f.id)
+    return { ...f, homeScore: r?.home_score ?? null, awayScore: r?.away_score ?? null }
+  })
+
+  const knockoutPicks: Record<number, string> = {}
+  for (const [matchId, r] of resultMap) {
+    if (matchId > GROUP_MATCH_MAX_ID && r.winner_id) {
+      knockoutPicks[matchId] = r.winner_id
+    }
+  }
+
+  const computed = computeTournament({ groupMatches, knockoutMatches: [], knockoutPicks })
+
+  // Apply R32 overrides if present
+  const overrides = (game?.r32_overrides ?? null) as Record<string, string> | null
+  const knockoutMatches = overrides
+    ? applyR32Overrides(computed.knockoutMatches, overrides)
+    : computed.knockoutMatches
 
   const bracket = new Map<number, { homeTeamId: string; awayTeamId: string }>()
-
-  // For now, we can't fully resolve the bracket without the bracket-resolution logic.
-  // This is intentionally limited — knockout auto-results will mostly be flagged
-  // as 'mapping_ambiguous' until bracket resolution is more complete.
-  // The host can always approve flagged suggestions manually.
+  for (const m of knockoutMatches) {
+    if (m.homeTeamId && m.awayTeamId) {
+      bracket.set(m.id, { homeTeamId: m.homeTeamId, awayTeamId: m.awayTeamId })
+    }
+  }
 
   return bracket
 }
