@@ -3,6 +3,7 @@ import { schedule } from '@/lib/data/schedule'
 import { groupFixtures } from '@/lib/data/fixtures'
 import { GROUP_MATCH_MAX_ID } from '@/lib/constants'
 import { computeTournament } from '@/lib/engine/tournament'
+import { applyR32Overrides } from '@/lib/engine/knockout-bracket'
 
 /**
  * GET /api/games/[code]/matchday
@@ -20,7 +21,7 @@ export async function GET(
   const [{ data: game }, { data: { user } }] = await Promise.all([
     supabase
       .from('games')
-      .select('id')
+      .select('id, r32_overrides')
       .eq('code', code.toUpperCase())
       .single(),
     supabase.auth.getUser(),
@@ -113,8 +114,12 @@ export async function GET(
     }
   }
   const computed = computeTournament({ groupMatches, knockoutMatches: [], knockoutPicks })
+  const overrides = (game.r32_overrides ?? null) as Record<string, string> | null
+  const knockoutMatches = overrides
+    ? applyR32Overrides(computed.knockoutMatches, overrides)
+    : computed.knockoutMatches
   const resolvedKnockout = new Map(
-    computed.knockoutMatches.map((m) => [m.id, m]),
+    knockoutMatches.map((m) => [m.id, m]),
   )
 
   // Build match info helper
