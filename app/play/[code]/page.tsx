@@ -28,6 +28,7 @@ import RoundRecapCard from '@/components/multiplayer/RoundRecapCard'
 import AutoResultsToggle from '@/components/multiplayer/AutoResultsToggle'
 import SuggestionReview from '@/components/multiplayer/SuggestionReview'
 import MatchDayCard from '@/components/multiplayer/MatchDayCard'
+import KnockoutInstructionsCard from '@/components/multiplayer/KnockoutInstructionsCard'
 import { cn } from '@/lib/utils'
 
 type Phase = 'predicting' | 'live' | 'finished'
@@ -262,6 +263,11 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
 
         {currentPlayer && (
           <RoundRecapCard code={code} gameId={game.id} currentPlayerId={currentPlayer.id} />
+        )}
+
+        {/* Knockout round instructions — shown once per round */}
+        {openRound && openRound.roundKey !== 'group' && (
+          <KnockoutInstructionsCard code={code} roundKey={openRound.roundKey as PredictionRoundKey} />
         )}
 
         {/* Leaderboard card */}
