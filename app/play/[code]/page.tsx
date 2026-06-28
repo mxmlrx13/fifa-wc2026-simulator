@@ -271,17 +271,6 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
           <KnockoutInstructionsCard code={code} roundKey={openRound.roundKey as PredictionRoundKey} />
         )}
 
-        {/* Leaderboard card */}
-        <div className="mb-6">
-          <h3 className="mb-3 text-[10px] font-bold uppercase tracking-[0.09em] text-muted">
-            Leaderboard
-          </h3>
-          <LeaderboardTable code={code} gameId={game.id} compact currentPlayerId={currentPlayer?.id} />
-        </div>
-
-        {/* Match day: recent results + today's matches */}
-        {currentPlayer && <MatchDayCard code={code} />}
-
         {/* Prediction CTA — all players (incl. host) when a round is open */}
         {openRound && currentPlayer && (
           <div className="mb-4">
@@ -303,6 +292,17 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
             </Link>
           </div>
         )}
+
+        {/* Leaderboard card */}
+        <div className="mb-6">
+          <h3 className="mb-3 text-[10px] font-bold uppercase tracking-[0.09em] text-muted">
+            Leaderboard
+          </h3>
+          <LeaderboardTable code={code} gameId={game.id} compact currentPlayerId={currentPlayer?.id} />
+        </div>
+
+        {/* Match day: recent results + today's matches */}
+        {currentPlayer && <MatchDayCard code={code} />}
 
         {/* Player completion for current open round */}
         {openRound && currentPlayer && (
