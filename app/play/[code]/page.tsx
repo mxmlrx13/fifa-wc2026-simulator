@@ -189,6 +189,7 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
             isHost={isHost}
             onAction={refetch}
             showCompletion
+            completionRound={openRound?.roundKey}
             gameId={game.id}
           />
 
@@ -300,6 +301,22 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
               </svg>
             </Link>
+          </div>
+        )}
+
+        {/* Player completion for current open round */}
+        {openRound && currentPlayer && (
+          <div className="mb-4">
+            <PlayerList
+              code={code}
+              players={players}
+              currentPlayerId={currentPlayer?.id}
+              isHost={isHost}
+              onAction={refetch}
+              showCompletion
+              completionRound={openRound.roundKey}
+              gameId={game.id}
+            />
           </div>
         )}
 

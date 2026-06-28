@@ -18,6 +18,7 @@ interface PlayerListProps {
   isHost: boolean
   onAction: () => void
   showCompletion?: boolean
+  completionRound?: string
   gameId?: string
 }
 
@@ -28,12 +29,14 @@ export default function PlayerList({
   isHost,
   onAction,
   showCompletion,
+  completionRound,
   gameId,
 }: PlayerListProps) {
   const router = useRouter()
   const [confirming, setConfirming] = useState<{ type: 'remove' | 'leave' | 'transfer'; playerId: string; name: string } | null>(null)
   const [loading, setLoading] = useState(false)
   const [completionCounts, setCompletionCounts] = useState<Record<string, number>>({})
+  const [totalMatches, setTotalMatches] = useState<number>(72)
 
   // Fetch completion counts if needed
   useEffect(() => {
@@ -41,11 +44,15 @@ export default function PlayerList({
 
     async function fetchCounts() {
       try {
-        const res = await fetch(`/api/games/${code}/predictions?completion=true`)
+        const roundQuery = completionRound ? `&round=${completionRound}` : ''
+        const res = await fetch(`/api/games/${code}/predictions?completion=true${roundQuery}`)
         if (res.ok) {
           const data = await res.json()
           if (data.completionCounts) {
             setCompletionCounts(data.completionCounts)
+          }
+          if (data.totalMatches) {
+            setTotalMatches(data.totalMatches)
           }
         }
       } catch {
@@ -53,7 +60,7 @@ export default function PlayerList({
       }
     }
     fetchCounts()
-  }, [showCompletion, gameId, code])
+  }, [showCompletion, gameId, code, completionRound])
 
   async function handleRemove(playerId: string) {
     setLoading(true)
@@ -124,8 +131,11 @@ export default function PlayerList({
                 </span>
                 <div className="flex items-center gap-1.5">
                   {showCompletion && count !== undefined && (
-                    <span className="text-[11px] font-semibold tabular-nums text-muted">
-                      {count}/72
+                    <span className={cn(
+                      'text-[11px] font-semibold tabular-nums',
+                      count === totalMatches ? 'text-win-ink' : 'text-muted',
+                    )}>
+                      {count}/{totalMatches}
                     </span>
                   )}
 

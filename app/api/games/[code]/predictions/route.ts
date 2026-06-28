@@ -196,22 +196,33 @@ export async function GET(
 
   // Completion mode: return per-player prediction counts (no prediction data)
   if (completionParam === 'true') {
+    const completionRound = roundParam as PredictionRoundKey | null
+    const [minId, maxId] = completionRound
+      ? PREDICTION_ROUND_RANGES[completionRound]
+      : [1, 72] // default to group stage
+
+    const totalMatches = maxId - minId + 1
+
     const { data: allPlayers } = await supabase
       .from('players')
       .select('id')
       .eq('game_id', game.id)
 
-    const { data: counts } = await supabase
+    let query = supabase
       .from('predictions')
       .select('player_id, match_id')
       .eq('game_id', game.id)
+      .gte('match_id', minId)
+      .lte('match_id', maxId)
+
+    const { data: counts } = await query
 
     const completionCounts: Record<string, number> = {}
     for (const p of allPlayers ?? []) {
       completionCounts[p.id] = (counts ?? []).filter((c) => c.player_id === p.id).length
     }
 
-    return Response.json({ completionCounts })
+    return Response.json({ completionCounts, totalMatches })
   }
 
   // Fetch game rounds to determine visibility
