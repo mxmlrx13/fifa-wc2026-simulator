@@ -282,7 +282,7 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
               </div>
             )}
             <Link
-              href={currentPlayer ? `/play/${code}/predict` : `/play/${code}/recover`}
+              href={`/play/${code}/predict`}
               className="flex items-center justify-center gap-3 rounded-[var(--radius-button)] bg-navy px-6 py-4 text-sm font-bold text-paper transition-all hover:brightness-94"
             >
               Enter {PREDICTION_ROUND_LABELS[openRound.roundKey as PredictionRoundKey] ?? openRound.roundKey} picks
@@ -290,11 +290,6 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
               </svg>
             </Link>
-            {!currentPlayer && (
-              <p className="mt-2 text-center text-[11px] text-muted">
-                Session expired — tap above to recover your account first
-              </p>
-            )}
           </div>
         )}
 

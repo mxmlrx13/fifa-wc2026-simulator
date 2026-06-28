@@ -813,9 +813,15 @@ export default function PredictPage({ params }: { params: Promise<{ code: string
 
   if (!game || !currentPlayer) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
-        <p className="text-sm font-medium text-red">Cannot access this game</p>
-        <Link href="/play" className="text-[11px] text-muted hover:text-ink hover:underline">Back</Link>
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4">
+        <p className="text-sm font-medium text-red">Session expired</p>
+        <p className="max-w-sm text-center text-[13.5px] text-muted">
+          Your browser session has expired. Use your recovery link to restore access, or rejoin the game.
+        </p>
+        <div className="flex gap-3">
+          <Link href={`/play/${code}`} className="text-[11px] text-navy hover:underline">Back to game</Link>
+          <Link href={`/play/join?code=${code}`} className="text-[11px] text-muted hover:text-ink hover:underline">Rejoin</Link>
+        </div>
       </div>
     )
   }
