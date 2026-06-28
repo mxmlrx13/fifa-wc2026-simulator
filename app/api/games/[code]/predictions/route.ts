@@ -3,6 +3,7 @@ import { getRoundForMatchId } from '@/lib/engine/rounds'
 import {
   GROUP_MATCH_MAX_ID,
   TOTAL_MATCHES,
+  PREDICTION_ROUND_RANGES,
   getPredictionRoundForMatchId,
   type PredictionRoundKey,
 } from '@/lib/constants'
@@ -208,14 +209,12 @@ export async function GET(
       .select('id')
       .eq('game_id', game.id)
 
-    let query = supabase
+    const { data: counts } = await supabase
       .from('predictions')
       .select('player_id, match_id')
       .eq('game_id', game.id)
       .gte('match_id', minId)
       .lte('match_id', maxId)
-
-    const { data: counts } = await query
 
     const completionCounts: Record<string, number> = {}
     for (const p of allPlayers ?? []) {
