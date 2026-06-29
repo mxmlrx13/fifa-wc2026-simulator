@@ -351,14 +351,41 @@ export default function GameDashboard({ params }: { params: Promise<{ code: stri
           </div>
         )}
 
-        {!openRound && currentPlayer && (
-          <Link
-            href={`/play/${code}/predict`}
-            className="mb-4 flex items-center justify-center gap-3 rounded-[var(--radius-button)] border border-line bg-card px-6 py-4 text-sm font-bold text-ink transition-all hover:bg-paper"
-          >
-            View my predictions
-          </Link>
-        )}
+        {/* Next round teaser or view predictions — shown when no round is open */}
+        {!openRound && currentPlayer && (() => {
+          const koOrder: PredictionRoundKey[] = ['r32', 'r16', 'qf', 'sf', 'final']
+          const nextPending = koOrder.find(
+            (rk) => rounds.find((r) => r.roundKey === rk)?.status === 'pending',
+          )
+          const currentLocked = koOrder.find(
+            (rk) => rounds.find((r) => r.roundKey === rk)?.status === 'locked',
+          )
+          return (
+            <div className="mb-4 space-y-2">
+              {(currentLocked || nextPending) && (
+                <div className="rounded-[var(--radius-card)] border border-line bg-card px-4 py-3 text-center">
+                  {currentLocked && (
+                    <p className="text-xs font-bold text-muted">
+                      {PREDICTION_ROUND_LABELS[currentLocked]} predictions locked — results in progress
+                    </p>
+                  )}
+                  {nextPending && (
+                    <p className="mt-1 text-[11px] text-muted">
+                      Up next: <span className="font-bold text-ink">{PREDICTION_ROUND_LABELS[nextPending]}</span>
+                      {' · '}opens once {PREDICTION_ROUND_LABELS[currentLocked ?? koOrder[koOrder.indexOf(nextPending) - 1] ?? 'r32']} results are scored
+                    </p>
+                  )}
+                </div>
+              )}
+              <Link
+                href={`/play/${code}/predict`}
+                className="flex items-center justify-center gap-3 rounded-[var(--radius-button)] border border-line bg-paper px-4 py-2.5 text-xs font-semibold text-muted transition-all hover:bg-card hover:text-ink"
+              >
+                View my predictions
+              </Link>
+            </div>
+          )
+        })()}
 
         {/* Round timeline */}
         <div className="mb-6">
