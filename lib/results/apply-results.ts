@@ -90,13 +90,25 @@ export async function applyResults(
         const actualWinnerId = actual.winner_id
         const predictedWinnerId = p.winner_id
         const correctWinner = !!(predictedWinnerId && actualWinnerId && predictedWinnerId === actualWinnerId)
+
+        // Use same tiered scoring as group stage: exact=5, correct GD=3, correct winner=1, wrong=0
         let points = 0
-        if (correctWinner) {
-          points = getKnockoutPointsForMatch(p.match_id)
-          if (p.home_score === actual.home_score && p.away_score === actual.away_score) {
-            points += KNOCKOUT_EXACT_BONUS
+        if (p.home_score !== null && p.away_score !== null) {
+          if (correctWinner) {
+            if (p.home_score === actual.home_score && p.away_score === actual.away_score) {
+              points = 5 // exact score
+            } else {
+              const predDiff = p.home_score - p.away_score
+              const actualDiff = actual.home_score - actual.away_score
+              if (predDiff === actualDiff) {
+                points = 3 // correct GD
+              } else {
+                points = 1 // correct winner only
+              }
+            }
           }
         }
+
         return {
           player_id: p.player_id,
           game_id: gameId,
