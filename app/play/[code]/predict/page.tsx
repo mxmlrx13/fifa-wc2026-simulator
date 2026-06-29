@@ -484,10 +484,12 @@ function PredictInner({
   code,
   rounds,
   currentChampionPick,
+  currentPlayerId,
 }: {
   code: string
   rounds: GameRound[]
   currentChampionPick: string | null
+  currentPlayerId: string
 }) {
   const { state, dispatch } = useTournament()
   const stateRef = useRef(state)
@@ -597,8 +599,9 @@ function PredictInner({
     fetchBracket()
   }, [isKnockoutPhase, code])
 
-  // Load existing predictions
+  // Load existing knockout predictions (own only)
   useEffect(() => {
+    if (!currentPlayerId) return
     async function loadExisting() {
       const res = await gameFetch(`/api/games/${code}/predictions`)
       if (!res.ok) return
@@ -607,7 +610,7 @@ function PredictInner({
 
       const koPicks: Record<number, KnockoutPrediction> = {}
       for (const p of data.predictions) {
-        if (p.match_id > GROUP_MATCH_MAX_ID) {
+        if (p.match_id > GROUP_MATCH_MAX_ID && p.player_id === currentPlayerId) {
           koPicks[p.match_id] = {
             homeScore: p.home_score ?? null,
             awayScore: p.away_score ?? null,
@@ -618,7 +621,7 @@ function PredictInner({
       setKnockoutPicks(koPicks)
     }
     loadExisting()
-  }, [code])
+  }, [code, currentPlayerId])
 
   // Load scores for scored rounds
   useEffect(() => {
@@ -784,7 +787,13 @@ export default function PredictPage({ params }: { params: Promise<{ code: string
       if (res.ok) {
         const data = await res.json()
         if (data.predictions?.length > 0) {
-          setInitialState(hydratePredictions(data.predictions))
+          // Filter to own predictions only (API returns all visible predictions)
+          const own = data.predictions.filter(
+            (p: { player_id: string }) => p.player_id === currentPlayer!.id,
+          )
+          if (own.length > 0) {
+            setInitialState(hydratePredictions(own))
+          }
         }
       }
 
@@ -862,6 +871,7 @@ export default function PredictPage({ params }: { params: Promise<{ code: string
           code={code}
           rounds={rounds}
           currentChampionPick={championPick}
+          currentPlayerId={currentPlayer.id}
         />
       </PredictionProvider>
     </div>
