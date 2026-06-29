@@ -21,6 +21,10 @@ interface Suggestion {
   resolved_at: string | null
 }
 
+interface KnockoutTeams {
+  [matchId: number]: { homeTeamId: string; awayTeamId: string }
+}
+
 interface SuggestionReviewProps {
   code: string
   onResultsChanged?: () => void
@@ -34,26 +38,41 @@ const REASON_LABELS: Record<string, string> = {
   clean: 'Sources agree',
 }
 
-function getMatchTeams(matchId: number): { homeId: string; awayId: string } | null {
+function getMatchTeams(
+  matchId: number,
+  knockoutTeams?: KnockoutTeams,
+): { homeId: string; awayId: string } | null {
   const gm = groupFixtures.find((f) => f.id === matchId)
   if (gm) return { homeId: gm.homeTeamId, awayId: gm.awayTeamId }
+  const ko = knockoutTeams?.[matchId]
+  if (ko) return { homeId: ko.homeTeamId, awayId: ko.awayTeamId }
   return null
 }
 
 export default function SuggestionReview({ code, onResultsChanged }: SuggestionReviewProps) {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
+  const [knockoutTeams, setKnockoutTeams] = useState<KnockoutTeams>({})
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editScores, setEditScores] = useState<{ home: number | null; away: number | null }>({ home: null, away: null })
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch(`/api/games/${code}/suggestions`)
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => {
-        if (data?.suggestions) setSuggestions(data.suggestions)
-      })
-      .finally(() => setLoading(false))
+    Promise.all([
+      fetch(`/api/games/${code}/suggestions`).then((r) => r.ok ? r.json() : null),
+      fetch(`/api/games/${code}/bracket`).then((r) => r.ok ? r.json() : null),
+    ]).then(([sugData, bracketData]) => {
+      if (sugData?.suggestions) setSuggestions(sugData.suggestions)
+      if (bracketData?.knockoutMatches) {
+        const teams: KnockoutTeams = {}
+        for (const m of bracketData.knockoutMatches) {
+          if (m.homeTeamId && m.awayTeamId) {
+            teams[m.id] = { homeTeamId: m.homeTeamId, awayTeamId: m.awayTeamId }
+          }
+        }
+        setKnockoutTeams(teams)
+      }
+    }).finally(() => setLoading(false))
   }, [code])
 
   const pending = suggestions.filter((s) => s.status === 'pending')
@@ -98,7 +117,7 @@ export default function SuggestionReview({ code, onResultsChanged }: SuggestionR
           </h3>
           <div className="space-y-2">
             {pending.map((s) => {
-              const teams = getMatchTeams(s.match_id)
+              const teams = getMatchTeams(s.match_id, knockoutTeams)
               const homeTeam = teams ? teamsMap[teams.homeId] : null
               const awayTeam = teams ? teamsMap[teams.awayId] : null
               const isEditing = editingId === s.id
@@ -193,7 +212,7 @@ export default function SuggestionReview({ code, onResultsChanged }: SuggestionR
           </h3>
           <div className="space-y-1">
             {autoApplied.map((s) => {
-              const teams = getMatchTeams(s.match_id)
+              const teams = getMatchTeams(s.match_id, knockoutTeams)
               const homeTeam = teams ? teamsMap[teams.homeId] : null
               const awayTeam = teams ? teamsMap[teams.awayId] : null
 
