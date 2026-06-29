@@ -94,8 +94,8 @@ function MatchRow({
 
   return (
     <div className="rounded-lg border border-line bg-card px-3 py-2.5">
-      {/* Match header: teams + score/time */}
-      <div className="flex items-center justify-between gap-2">
+      {/* Match header: teams + score/time + group */}
+      <div className="flex items-center gap-2">
         <div className="flex items-center gap-1.5 text-[12.5px] font-semibold text-ink">
           <span>{teamBadge(match.homeTeamId)}</span>
           <span className="text-muted">–</span>
@@ -113,7 +113,7 @@ function MatchRow({
         ) : null}
 
         {match.groupId && (
-          <span className="text-[9px] font-bold uppercase tracking-wider text-muted">
+          <span className="ml-auto text-[9px] font-bold uppercase tracking-wider text-muted">
             Gr. {match.groupId}
           </span>
         )}
