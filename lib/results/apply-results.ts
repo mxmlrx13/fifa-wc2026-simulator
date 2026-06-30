@@ -87,27 +87,10 @@ export async function applyResults(
       const actual = resultMap.get(p.match_id)!
 
       if (isKnockoutBatch) {
-        const actualWinnerId = actual.winner_id
-        const predictedWinnerId = p.winner_id
-        const correctWinner = !!(predictedWinnerId && actualWinnerId && predictedWinnerId === actualWinnerId)
-
-        // Use same tiered scoring as group stage: exact=5, correct GD=3, correct winner=1, wrong=0
-        let points = 0
-        if (p.home_score !== null && p.away_score !== null) {
-          if (correctWinner) {
-            if (p.home_score === actual.home_score && p.away_score === actual.away_score) {
-              points = 5 // exact score
-            } else {
-              const predDiff = p.home_score - p.away_score
-              const actualDiff = actual.home_score - actual.away_score
-              if (predDiff === actualDiff) {
-                points = 3 // correct GD
-              } else {
-                points = 1 // correct winner only
-              }
-            }
-          }
-        }
+        // Same tiered scoring as group stage, based purely on scoreline
+        const { points } = (p.home_score !== null && p.away_score !== null)
+          ? computePoints(p.home_score, p.away_score, actual.home_score, actual.away_score)
+          : { points: 0 }
 
         return {
           player_id: p.player_id,
@@ -118,8 +101,8 @@ export async function applyResults(
           prediction_away: p.away_score,
           actual_home: actual.home_score,
           actual_away: actual.away_score,
-          predicted_winner_id: predictedWinnerId,
-          actual_winner_id: actualWinnerId,
+          predicted_winner_id: p.winner_id,
+          actual_winner_id: actual.winner_id,
         }
       }
 
