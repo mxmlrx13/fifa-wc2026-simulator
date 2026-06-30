@@ -9,8 +9,6 @@ import { computePoints } from '../engine/scoring'
 import { computeLeaderboard } from '../engine/leaderboard'
 import {
   getPredictionRoundForMatchId,
-  getKnockoutPointsForMatch,
-  KNOCKOUT_EXACT_BONUS,
   PREDICTION_ROUNDS,
   PREDICTION_ROUND_RANGES,
   FINAL_MATCH_ID,
@@ -87,10 +85,15 @@ export async function applyResults(
       const actual = resultMap.get(p.match_id)!
 
       if (isKnockoutBatch) {
-        // Same tiered scoring as group stage, based purely on scoreline
-        const { points } = (p.home_score !== null && p.away_score !== null)
-          ? computePoints(p.home_score, p.away_score, actual.home_score, actual.away_score)
-          : { points: 0 }
+        // Same tiered scoring as group stage + 1 bonus for correct penalty winner
+        let points = 0
+        if (p.home_score !== null && p.away_score !== null) {
+          points = computePoints(p.home_score, p.away_score, actual.home_score, actual.away_score).points
+          // +1 bonus for correct penalty winner (only on actual draws)
+          if (actual.home_score === actual.away_score && p.winner_id && actual.winner_id && p.winner_id === actual.winner_id) {
+            points += 1
+          }
+        }
 
         return {
           player_id: p.player_id,

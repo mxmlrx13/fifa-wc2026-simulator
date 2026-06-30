@@ -90,16 +90,27 @@ export async function fetchEspn(): Promise<ApiFootballFixture[] | null> {
         const awayGoals = parseInt(away.score, 10)
         if (isNaN(homeGoals) || isNaN(awayGoals)) continue
 
+        // Determine penalty winner from ESPN's `winner` boolean.
+        // For penalty-decided matches, scores are tied but one competitor
+        // has winner: true. We synthesise penaltyHome/penaltyAway as 1/0
+        // so getApiFootballWinner() can pick the correct team.
+        let penaltyHome: number | null = null
+        let penaltyAway: number | null = null
+        if (homeGoals === awayGoals && (home.winner || away.winner)) {
+          penaltyHome = home.winner ? 1 : 0
+          penaltyAway = away.winner ? 1 : 0
+        }
+
         fixtures.push({
           fixtureId: parseInt(event.id, 10) || 0,
           date: event.date,
-          status: 'FT',
+          status: penaltyHome !== null ? 'PEN' : 'FT',
           homeTeamName: home.team.displayName,
           awayTeamName: away.team.displayName,
           homeGoals,
           awayGoals,
-          penaltyHome: null,
-          penaltyAway: null,
+          penaltyHome,
+          penaltyAway,
           raw: event,
         })
       }
