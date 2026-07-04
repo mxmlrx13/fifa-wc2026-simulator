@@ -235,7 +235,7 @@ const STEP_CONTENT: Array<{
     num: 'Step 3 · Knockouts',
     title: 'Knockouts: now you call the score.',
     body: (
-      <p>Predict the scoreline for every knockout match. <b>Correct advancing team</b> earns the round&apos;s base points (3 → 4 → 5 → 6 → 8), and an <b>exact score = +2 bonus</b>. Draw? Pick the shootout winner.</p>
+      <p>Predict the scoreline for every knockout match. Same scoring as groups: <b>5</b> exact · <b>3</b> goal difference · <b>1</b> correct result. Draw? Pick the shootout winner for a <b>+1 bonus</b>.</p>
     ),
     viz: <KnockoutViz />,
   },

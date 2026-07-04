@@ -355,7 +355,7 @@ function KnockoutPhaseInner({
                   M{fixture.matchId}
                   {isScored && matchPoints !== undefined && (
                     <span className="float-right">
-                      <PointsChip tier={matchPoints >= 5 ? 'exact' : matchPoints > 0 ? 'gd' : 'zero'}>
+                      <PointsChip tier={matchPoints >= 5 ? 'exact' : matchPoints >= 3 ? 'gd' : matchPoints >= 1 ? 'result' : 'zero'}>
                         {matchPoints}
                       </PointsChip>
                     </span>
