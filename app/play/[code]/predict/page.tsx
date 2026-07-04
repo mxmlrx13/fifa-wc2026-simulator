@@ -14,7 +14,6 @@ import {
   GROUP_MATCH_MAX_ID,
   THIRD_PLACE_MATCH_ID,
   FINAL_MATCH_ID,
-  getKnockoutPointsForMatch,
   type PredictionRoundKey,
 } from '@/lib/constants'
 import PredictionProvider from '@/components/multiplayer/PredictionProvider'
@@ -295,7 +294,7 @@ function KnockoutPhaseInner({
           {pickCount}/{roundFixtures.length} picks
           {isRoundOpen && (
             <span className="ml-2 text-navy">
-              ({getKnockoutPointsForMatch(min)} pts · exact +2)
+              (5 exact · 3 GD · 1 result · +1 pen)
             </span>
           )}
           {pendingShootouts > 0 && (
