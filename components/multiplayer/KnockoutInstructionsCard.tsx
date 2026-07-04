@@ -29,14 +29,6 @@ const ROUND_MATCH_COUNT: Record<string, number> = {
   final: 2,
 }
 
-const ROUND_POINTS: Record<string, number> = {
-  r32: 3,
-  r16: 4,
-  qf: 5,
-  sf: 6,
-  final: 8,
-}
-
 interface Props {
   code: string
   roundKey: PredictionRoundKey
@@ -49,13 +41,20 @@ export default function KnockoutInstructionsCard({ code, roundKey }: Props) {
 
   const roundLabel = PREDICTION_ROUND_LABELS[roundKey]
   const matchCount = ROUND_MATCH_COUNT[roundKey] ?? 4
-  const basePoints = ROUND_POINTS[roundKey] ?? 3
   const isFirstKnockout = roundKey === 'r32'
 
   function handleDismiss() {
     markSeen(code, roundKey)
     setDismissed(true)
   }
+
+  const scoringInfo = (
+    <p>
+      Scoring: <strong>5</strong> exact · <strong>3</strong> goal
+      difference · <strong>1</strong> correct result · <strong>+1</strong> bonus
+      for correct penalty winner on draws.
+    </p>
+  )
 
   return (
     <div className="mb-6 rounded-[var(--radius-card)] border border-navy/20 bg-navy/5 px-5 py-4">
@@ -72,15 +71,14 @@ export default function KnockoutInstructionsCard({ code, roundKey }: Props) {
               <p>
                 The format changes from group stage. For each match, predict the
                 score <strong>and</strong> pick a winner. If scores are tied,
-                you'll pick who wins on penalties.
+                you&apos;ll pick who wins on penalties.
               </p>
               <p>
                 <strong>{matchCount} matches</strong> to predict.
-                Points escalate each round: <strong>{basePoints} pts</strong> for
-                a correct winner + <strong>2 bonus</strong> for the exact score.
               </p>
+              {scoringInfo}
               <p>
-                Predictions auto-lock when the first match kicks off. Don't
+                Predictions auto-lock when the first match kicks off. Don&apos;t
                 miss it!
               </p>
             </div>
@@ -88,9 +86,9 @@ export default function KnockoutInstructionsCard({ code, roundKey }: Props) {
             <div className="mt-2 space-y-1.5 text-[11.5px] text-ink/80">
               <p>
                 <strong>{matchCount} match{matchCount !== 1 ? 'es' : ''}</strong> to
-                predict. <strong>{basePoints} pts</strong> per correct winner
-                + <strong>2 bonus</strong> for the exact score.
+                predict.
               </p>
+              {scoringInfo}
               <p>
                 Predictions auto-lock at kickoff. Enter your picks before the
                 deadline!
