@@ -110,6 +110,12 @@ export async function PATCH(
     return Response.json({ error: 'Scores required' }, { status: 400 })
   }
 
+  // Block knockout draws without a penalty winner
+  const isKnockout = suggestion.match_id > 72
+  if (isKnockout && finalHome === finalAway && !finalWinner) {
+    return Response.json({ error: 'Knockout draws require a penalty winner. Select who won on penalties.' }, { status: 400 })
+  }
+
   const batch = getRoundForMatchId(suggestion.match_id)
   if (!batch) {
     return Response.json({ error: 'Cannot determine batch for match' }, { status: 400 })

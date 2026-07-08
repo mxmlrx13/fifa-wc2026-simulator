@@ -55,6 +55,7 @@ export default function SuggestionReview({ code, onResultsChanged }: SuggestionR
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editScores, setEditScores] = useState<{ home: number | null; away: number | null }>({ home: null, away: null })
+  const [winnerPicks, setWinnerPicks] = useState<Record<string, string>>({})
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
   useEffect(() => {
@@ -78,13 +79,14 @@ export default function SuggestionReview({ code, onResultsChanged }: SuggestionR
   const pending = suggestions.filter((s) => s.status === 'pending')
   const autoApplied = suggestions.filter((s) => s.status === 'auto_applied')
 
-  async function handleAction(suggestionId: string, action: 'approve' | 'dismiss', edited?: { homeScore: number; awayScore: number }) {
+  async function handleAction(suggestionId: string, action: 'approve' | 'dismiss', edited?: { homeScore: number; awayScore: number }, winnerId?: string) {
     setActionLoading(suggestionId)
     const body: Record<string, unknown> = { suggestionId, action }
     if (edited) {
       body.homeScore = edited.homeScore
       body.awayScore = edited.awayScore
     }
+    if (winnerId) body.winnerId = winnerId
 
     const res = await fetch(`/api/games/${code}/suggestions`, {
       method: 'PATCH',
@@ -121,6 +123,10 @@ export default function SuggestionReview({ code, onResultsChanged }: SuggestionR
               const homeTeam = teams ? teamsMap[teams.homeId] : null
               const awayTeam = teams ? teamsMap[teams.awayId] : null
               const isEditing = editingId === s.id
+              const isKnockout = s.match_id > 72
+              const isDraw = s.home_score !== null && s.away_score !== null && s.home_score === s.away_score
+              const needsWinner = isKnockout && isDraw && !s.winner_id
+              const selectedWinner = winnerPicks[s.id] ?? s.winner_id ?? ''
 
               return (
                 <div key={s.id} className="rounded-[var(--radius-card)] border border-line bg-card p-3">
@@ -133,11 +139,38 @@ export default function SuggestionReview({ code, onResultsChanged }: SuggestionR
                     </div>
                     <span className={cn(
                       'rounded-[var(--radius-pill)] px-2 py-0.5 text-[9px] font-bold',
-                      s.reason === 'sources_disagree' ? 'bg-red-soft text-red' : 'bg-out-soft text-muted',
+                      s.reason === 'sources_disagree' ? 'bg-red-soft text-red' : needsWinner ? 'bg-red-soft text-red' : 'bg-out-soft text-muted',
                     )}>
-                      {REASON_LABELS[s.reason] ?? s.reason}
+                      {needsWinner ? 'Needs penalty winner' : (REASON_LABELS[s.reason] ?? s.reason)}
                     </span>
                   </div>
+
+                  {/* Penalty winner picker for knockout draws */}
+                  {needsWinner && homeTeam && awayTeam && (
+                    <div className="mt-2 flex items-center gap-2 rounded-lg bg-red-soft/30 px-3 py-2 text-xs">
+                      <span className="font-semibold text-red">Penalty winner:</span>
+                      <button
+                        type="button"
+                        onClick={() => setWinnerPicks((p) => ({ ...p, [s.id]: homeTeam.id }))}
+                        className={cn(
+                          'rounded px-2 py-0.5 font-bold transition-all',
+                          selectedWinner === homeTeam.id ? 'bg-navy text-paper' : 'bg-out-soft hover:bg-line',
+                        )}
+                      >
+                        {homeTeam.id}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setWinnerPicks((p) => ({ ...p, [s.id]: awayTeam.id }))}
+                        className={cn(
+                          'rounded px-2 py-0.5 font-bold transition-all',
+                          selectedWinner === awayTeam.id ? 'bg-navy text-paper' : 'bg-out-soft hover:bg-line',
+                        )}
+                      >
+                        {awayTeam.id}
+                      </button>
+                    </div>
+                  )}
 
                   {isEditing ? (
                     <div className="mt-2 flex items-center gap-2">
@@ -150,10 +183,11 @@ export default function SuggestionReview({ code, onResultsChanged }: SuggestionR
                         loading={actionLoading === s.id}
                         onClick={() => {
                           if (editScores.home !== null && editScores.away !== null) {
+                            const editWinner = editScores.home === editScores.away ? (winnerPicks[s.id] || undefined) : undefined
                             handleAction(s.id, 'approve', {
                               homeScore: editScores.home,
                               awayScore: editScores.away,
-                            })
+                            }, editWinner)
                           }
                         }}
                       >
@@ -173,7 +207,8 @@ export default function SuggestionReview({ code, onResultsChanged }: SuggestionR
                         variant="primary"
                         className="!px-3 !py-1.5 !text-[11px] !min-h-0"
                         loading={actionLoading === s.id}
-                        onClick={() => handleAction(s.id, 'approve')}
+                        disabled={needsWinner && !selectedWinner}
+                        onClick={() => handleAction(s.id, 'approve', undefined, selectedWinner || undefined)}
                       >
                         Approve
                       </Button>
